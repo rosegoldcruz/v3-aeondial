@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+
+html, body {
+  background: #0A0806;
+  color: #F2E8D9;
+  font-family: 'DM Mono', 'Courier New', monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* AEON node-grid backdrop — subtle, alive, not noisy */
+.aeon-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(232,123,46,0.08) 1px, transparent 0);
+  background-size: 28px 28px;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #110E0A; }
+::-webkit-scrollbar-thumb { background: #2A2218; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #4A3A2A; }
+
+.card { background:#18140F; border:1px solid #2A2218; border-radius:12px; }
+.pill { border-radius:20px; border:1px solid #2A2218; padding:6px 14px; font-size:12px; }
+.pill-on { border-color:#E87B2E; background:rgba(232,123,46,0.12); color:#E87B2E; }
