@@ -3,7 +3,7 @@ module.exports = {
   apps: [
     {
       name: "aeondial",
-      cwd: "/home/aeondial",
+      cwd: "/opt/aeondial-v3",
       script: "npm",
       args: "start",
       autorestart: true,

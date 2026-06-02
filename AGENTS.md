@@ -13,8 +13,8 @@ without breaking the spine.
 - DB: ONE self-hosted Postgres via `pg`. No ORM. No second database.
 - NocoDB sits OVER the same Postgres as the internal admin grid. It is not a
   separate source of truth. The app is the controlled application layer.
-- AI: ONE layer — Vertex Gemini via OpenAI-compatible gateway (`lib/ai/client.ts`),
-  reused from aeon-rag. Do not introduce a second AI SDK or vendor.
+- AI: ONE layer — DeepSeek via `@ai-sdk/deepseek` (`lib/ai/client.ts`).
+  Do not introduce a second AI SDK or vendor.
 - Money: integer cents everywhere (`*_cents`). Format only at the edge (`fmtUSD`).
 - Every table is org-scoped (`org_id`). Every query filters by org. No exceptions.
 
@@ -72,6 +72,6 @@ mode, no AMD. State: UNREGISTERED → REGISTERED → AGENT_LEG_LIVE → READY �
 1. CRM: contact/deal create modals + drag pipeline (move endpoint exists)
 2. Finance: add-subscription + add-transaction forms (POST /api/finance ready)
 3. Bids: save bid → DB (POST /api/bids ready) + PDF export for Mike
-4. Intelligence: wire retrieval to the aeon-rag vector store via the gateway
+4. Intelligence: wire retrieval to the approved vector store
 5. Dialer: ARI orchestration from aeondial-telephony
 6. NocoDB: connect to POSTGRES_URL, verify table introspection

@@ -1,16 +1,12 @@
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createDeepSeek } from "@ai-sdk/deepseek";
 
-// Reuses the proven aeon-rag pattern: Vertex Gemini behind an
-// OpenAI-compatible gateway. One AI layer for RAG + coding + marketing.
-function aiProvider() {
-  const baseURL = process.env.AEON_AI_BASE_URL;
-  const apiKey = process.env.AEON_AI_API_KEY;
-  if (!baseURL) throw new Error("Missing required env var: AEON_AI_BASE_URL");
-  if (!apiKey) throw new Error("Missing required env var: AEON_AI_API_KEY");
-  return createOpenAICompatible({ name: "aeon", baseURL, apiKey });
+function getProvider() {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error("Missing required env var: DEEPSEEK_API_KEY");
+  return createDeepSeek({ apiKey });
 }
 
 export function aeonModel() {
-  const id = process.env.AEON_AI_MODEL ?? "gemini-2.5-flash";
-  return aiProvider()(id);
+  const id = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+  return getProvider()(id);
 }

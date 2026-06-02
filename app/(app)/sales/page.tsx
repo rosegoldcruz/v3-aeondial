@@ -1,6 +1,6 @@
 import { Topbar } from "@/components/shell/topbar";
 import { getOrgId } from "@/lib/auth/session";
-import { dealsByStage, wonValueCents, pipelineValueCents } from "@/lib/data/crm";
+import { dealsByStage, listDeals, wonValueCents, pipelineValueCents } from "@/lib/data/crm";
 import { SalesClient } from "./sales-client";
 
 export const dynamic = "force-dynamic";
@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export default async function SalesPage() {
   const orgId = await getOrgId();
   if (!orgId) return (<><Topbar title="Sales Ops" /><div className="p-8 text-muted">No organization resolved.</div></>);
-  const [byStage, won, pipeline] = await Promise.all([
-    dealsByStage(orgId), wonValueCents(orgId), pipelineValueCents(orgId),
+  const [byStage, deals, won, pipeline] = await Promise.all([
+    dealsByStage(orgId), listDeals(orgId), wonValueCents(orgId), pipelineValueCents(orgId),
   ]);
   const funnel = (["lead","qualified","proposal","negotiation","won"] as const).map((s) => ({
     stage: s, count: byStage[s].length,
@@ -18,7 +18,7 @@ export default async function SalesPage() {
   return (
     <>
       <Topbar title="Sales Ops" />
-      <SalesClient funnel={funnel} wonCents={won} pipelineCents={pipeline} />
+      <SalesClient funnel={funnel} deals={deals.slice(0, 5)} wonCents={won} pipelineCents={pipeline} />
     </>
   );
 }

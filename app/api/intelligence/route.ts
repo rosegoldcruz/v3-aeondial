@@ -6,8 +6,7 @@ import { query } from "@/lib/db/pool";
 
 export const dynamic = "force-dynamic";
 
-// RAG query endpoint. Retrieval against the aeon-rag vector store happens
-// upstream via AEON_AI_BASE_URL (grounded gateway). We log Q/A here.
+// Intelligence query endpoint. We log Q/A in Postgres for later retrieval wiring.
 export async function POST(req: NextRequest) {
   const orgId = await getOrgId();
   if (!orgId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

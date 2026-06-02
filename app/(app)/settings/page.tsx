@@ -27,7 +27,7 @@ export default async function SettingsPage() {
           <div className="text-xs text-muted space-y-1">
             <div>Postgres — self-hosted (single source of truth)</div>
             <div>NocoDB — internal admin UI over the same Postgres</div>
-            <div>AI — Vertex Gemini via OpenAI-compatible gateway</div>
+            <div>AI — DeepSeek</div>
           </div>
         </Card>
       </div>

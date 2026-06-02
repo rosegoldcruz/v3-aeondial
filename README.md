@@ -8,7 +8,7 @@ Self-hosted Postgres (single source of truth) + NocoDB admin. ZITADEL auth. No C
 - Auth: NextAuth + ZITADEL (OIDC) — Google/Microsoft/GitHub upstream
 - DB: self-hosted Postgres via `pg` (no ORM)
 - Admin DB UI: NocoDB over the same Postgres
-- AI: Vertex Gemini via OpenAI-compatible gateway (reused from aeon-rag)
+- AI: DeepSeek via `@ai-sdk/deepseek`
 - Deploy: PM2 on Hetzner, port 3000, behind nginx at crm.aeondial.com
 
 ## Modules
@@ -45,6 +45,9 @@ pm2 start ecosystem.config.cjs
 ## Auth (ZITADEL)
 Create an OIDC app in ZITADEL, redirect URI: `https://crm.aeondial.com/api/auth/callback/zitadel`.
 Fill ZITADEL_ISSUER / CLIENT_ID / CLIENT_SECRET and NEXTAUTH_SECRET.
+
+## AI
+Set `DEEPSEEK_API_KEY`. `DEEPSEEK_MODEL` defaults to `deepseek-chat`.
 
 ## NocoDB
 Point NocoDB at the same POSTGRES_URL as a new external data source. It auto-introspects every
