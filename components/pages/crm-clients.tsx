@@ -508,7 +508,7 @@ export function CRMOpportunitiesTable({ deals }: { deals: NamedDeal[] }) {
       <StatGrid>
         <Stat label="Weighted Pipeline" value={money(rows.reduce((sum, row) => sum + row.weighted, 0))} />
         <Stat label="Expected Close This Month" value={money(rows.filter((row) => row.expected_close && new Date(row.expected_close).getMonth() === new Date().getMonth()).reduce((sum, row) => sum + row.weighted, 0))} />
-        <Stat label="Avg Deal Size" value={money(rows.length ? Math.round(rows.reduce((sum, row) => sum + row.value_cents, 0) / rows.length) : 0)} />
+        <Stat label="Avg Deal Size" value={money(rows.length ? Math.round(rows.reduce((sum, row) => sum + Number(row.value_cents), 0) / rows.length) : 0)} />
         <Stat label="Win Rate %" value={`${Math.round((deals.filter((deal) => deal.stage === "won").length / Math.max(1, deals.length)) * 100)}%`} />
       </StatGrid>
 

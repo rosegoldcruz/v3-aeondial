@@ -1,4 +1,9 @@
-import { Pool, type QueryResultRow } from "pg";
+import { Pool, types, type QueryResultRow } from "pg";
+
+// Parse bigint (int8) columns as numbers to prevent string concatenation bugs.
+// This is safe because deal/subscription values in cents fit comfortably in
+// JavaScript's Number (up to ~$90 quadrillion safely).
+types.setTypeParser(20, (val: string) => Number(val)); // int8 → number
 
 // Lazy single shared pool. Never connects at build/import time —
 // only on first query. Reused across hot reloads in dev via globalThis.

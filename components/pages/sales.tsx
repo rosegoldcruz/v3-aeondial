@@ -8,7 +8,7 @@ import { formatDate, initials, money, stageTone, timeAgo } from "@/lib/ui/format
 
 export async function SalesOverviewView() {
   const data = await requireWorkspaceData();
-  const wonRevenue = data.deals.filter((deal) => deal.stage === "won").reduce((sum, deal) => sum + deal.value_cents, 0);
+  const wonRevenue = data.deals.filter((deal) => deal.stage === "won").reduce((sum, deal) => sum + Number(deal.value_cents), 0);
   const conversion = Math.round((data.deals.filter((deal) => deal.stage === "won").length / Math.max(1, data.leads.length)) * 100);
   const activeDeals = data.deals.filter((deal) => !["won", "lost"].includes(deal.stage));
   const performers = topPerformers(data.deals);
@@ -40,7 +40,7 @@ export async function SalesOverviewView() {
             <SectionCard title="Pipeline Stages">
               <div className="space-y-4">
                 {stages.map((entry, index) => {
-                  const total = entry.deals.reduce((sum, deal) => sum + deal.value_cents, 0);
+                  const total = entry.deals.reduce((sum, deal) => sum + Number(deal.value_cents), 0);
                   const share = Math.round((entry.deals.length / Math.max(1, activeDeals.length)) * 100);
                   return (
                     <div key={entry.stage} className="space-y-2">
@@ -299,12 +299,12 @@ function forecastRows(deals: Awaited<ReturnType<typeof requireWorkspaceData>>["d
     current.deals += 1;
     current.lastActivity = current.lastActivity > deal.updated_at ? current.lastActivity : deal.updated_at;
     if (deal.stage === "won") {
-      current.closed += deal.value_cents;
+      current.closed += Number(deal.value_cents);
       current.wonDeals += 1;
-      current.revenue += deal.value_cents;
+      current.revenue += Number(deal.value_cents);
     } else if (deal.stage !== "lost") {
-      current.pipeline += deal.value_cents;
-      current.projected += Math.round(deal.value_cents * (probability(deal.stage) / 100));
+      current.pipeline += Number(deal.value_cents);
+      current.projected += Math.round(Number(deal.value_cents) * (probability(deal.stage) / 100));
     }
     owners.set(key, current);
   }
@@ -334,7 +334,7 @@ function last8WeeksRevenue(deals: Awaited<ReturnType<typeof requireWorkspaceData
       const date = new Date(deal.updated_at);
       return date >= start && date <= end && deal.stage === "won";
     });
-    const value = selected.reduce((sum, deal) => sum + deal.value_cents, 0) / 100;
+    const value = selected.reduce((sum, deal) => sum + Number(deal.value_cents), 0) / 100;
     return { label: `W${index + 1}`, value, target: Math.round(value * 0.88) };
   });
 }
@@ -351,7 +351,7 @@ function last12Months(deals: Awaited<ReturnType<typeof requireWorkspaceData>>["d
     });
     return {
       label: date.toLocaleString("en-US", { month: "short" }),
-      revenue: monthDeals.filter((deal) => deal.stage === "won").reduce((sum, deal) => sum + deal.value_cents, 0),
+      revenue: monthDeals.filter((deal) => deal.stage === "won").reduce((sum, deal) => sum + Number(deal.value_cents), 0),
       won: monthDeals.filter((deal) => deal.stage === "won").length,
       lost: monthDeals.filter((deal) => deal.stage === "lost").length,
     };

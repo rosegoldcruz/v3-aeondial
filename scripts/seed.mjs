@@ -256,6 +256,16 @@ try {
     ["Door hanger print run", 31000, "out", "Marketing", "Vulpine Homes", "2026-05-30"],
     ["CloudBase payment", 17800000, "in", "Sales", "Vulpine Homes", "2026-05-28"],
     ["Cabinet sample materials", 84000, "out", "COGS", "Vulpine Homes", "2026-05-25"],
+    ["SNRG retainer receipt", 2500000, "in", "Sales", "SNRG Labs", "2026-06-03"],
+    ["Meta ads spend", 48500, "out", "Marketing", "SNRG Labs", "2026-06-02"],
+    ["AWS workspace invoice", 17300, "out", "Infra", "SNRG Labs", "2026-05-31"],
+    ["Design contract payment", 1500000, "in", "Services", "SNRG Labs", "2026-05-29"],
+    ["Vulpine showroom lease", 620000, "out", "Ops", "Vulpine Homes", "2026-06-01"],
+    ["Installer payroll batch", 224500, "out", "Payroll", "Vulpine Homes", "2026-05-27"],
+    ["Cabinet hardware invoice", 118000, "out", "COGS", "Vulpine Homes", "2026-05-26"],
+    ["Client milestone payment", 3100000, "in", "Sales", "Vulpine Homes", "2026-05-24"],
+    ["SEO campaign invoice", 92000, "out", "Marketing", "SNRG Labs", "2026-05-23"],
+    ["Office software renewal", 27600, "out", "Ops", "SNRG Labs", "2026-05-22"],
   ];
   for (const [desc, cents, type, cat, ent, date] of transactions) {
     await insertIfMissing(

@@ -4,16 +4,20 @@ import { Avatar, Badge, ProgressBar, Row, Stat } from "@/components/ui/primitive
 import { RevenueAreaChart } from "@/components/pages/charts";
 import { GridHalves, GridTwo, PageSection, SectionCard, StatGrid } from "@/components/pages/common";
 import { formatDate, formatDateTime, formatShortDate, initials, money, stageTone, timeAgo } from "@/lib/ui/format";
+import { getOrgId } from "@/lib/auth/session";
+import { pipelineValueCents } from "@/lib/data/crm";
 import { requireWorkspaceData } from "@/lib/data/page-data";
 import { CRMActivitiesClient, CRMCampaignsClient, CRMContactsClient, CRMDealsClient, CRMLeadsClient, CRMOpportunitiesTable } from "@/components/pages/crm-clients";
 
 export async function CRMDashboardView() {
   const data = await requireWorkspaceData();
+  const orgId = await getOrgId();
   const pipeline = data.deals.filter((deal) => !["won", "lost"].includes(deal.stage));
-  const wonThisMonth = data.deals.filter((deal) => deal.stage === "won" && new Date(deal.updated_at).getMonth() === new Date().getMonth()).reduce((sum, deal) => sum + deal.value_cents, 0);
+  const pipelineVal = orgId ? await pipelineValueCents(orgId) : pipeline.reduce((sum, deal) => sum + Number(deal.value_cents), 0);
+  const wonThisMonth = data.deals.filter((deal) => deal.stage === "won" && new Date(deal.updated_at).getMonth() === new Date().getMonth()).reduce((sum, deal) => sum + Number(deal.value_cents), 0);
   const stageGroups = ["lead", "qualified", "proposal", "negotiation", "won"].map((stage) => {
     const deals = data.deals.filter((deal) => deal.stage === stage);
-    return { stage, count: deals.length, value: deals.reduce((sum, deal) => sum + deal.value_cents, 0) };
+    return { stage, count: deals.length, value: deals.reduce((sum, deal) => sum + Number(deal.value_cents), 0) };
   });
   const weekly = last8Weeks(data.deals.map((deal) => deal.created_at));
 
@@ -24,7 +28,7 @@ export async function CRMDashboardView() {
         <StatGrid>
           <Stat label="Total Contacts" value={String(data.contacts.length)} />
           <Stat label="Open Deals" value={String(pipeline.length)} />
-          <Stat label="Pipeline Value" value={money(pipeline.reduce((sum, deal) => sum + deal.value_cents, 0))} />
+          <Stat label="Pipeline Value" value={money(pipelineVal)} />
           <Stat label="Won This Month" value={money(wonThisMonth)} />
         </StatGrid>
 
@@ -130,7 +134,7 @@ export async function CRMPipelineView() {
         <div className="grid gap-4 xl:grid-cols-5">
           {stages.map((stage) => {
             const deals = data.deals.filter((deal) => deal.stage === stage);
-            const total = deals.reduce((sum, deal) => sum + deal.value_cents, 0);
+            const total = deals.reduce((sum, deal) => sum + Number(deal.value_cents), 0);
             return (
               <div key={stage} className="rounded-xl border border-border bg-card p-4">
                 <div className="mb-4 flex items-center justify-between">

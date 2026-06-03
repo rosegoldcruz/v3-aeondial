@@ -464,7 +464,9 @@ export function AgentWorkbenchClient({ runs, kind, connected }: { runs: AgentRun
 
 export function FinanceLedgerClient({ transactions, entities }: { transactions: NamedTransaction[]; entities: Entity[] }) {
   const [rows, setRows] = useState(transactions);
-  const [entityId, setEntityId] = useState(entities[0]?.id ?? "");
+  const [entityId, setEntityId] = useState(
+    entities.find((entity) => transactions.some((row) => row.entity_id === entity.id))?.id ?? entities[0]?.id ?? ""
+  );
   const [form, setForm] = useState({ description: "", amount: "1000", type: "out", category: "Ops" });
 
   async function submit() {
@@ -530,7 +532,9 @@ export function FinanceLedgerClient({ transactions, entities }: { transactions: 
 
 export function FinanceSubscriptionsClient({ subscriptions, entities }: { subscriptions: NamedSubscription[]; entities: Entity[] }) {
   const [rows, setRows] = useState(subscriptions);
-  const [entityId, setEntityId] = useState(entities[0]?.id ?? "");
+  const [entityId, setEntityId] = useState(
+    entities.find((entity) => subscriptions.some((row) => row.entity_id === entity.id))?.id ?? entities[0]?.id ?? ""
+  );
   const [form, setForm] = useState({ name: "", amount: "250", category: "Software" });
 
   async function submit() {
