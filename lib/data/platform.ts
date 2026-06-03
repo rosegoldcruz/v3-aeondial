@@ -26,6 +26,8 @@ import type {
 
 export interface NamedDeal extends Deal {
   contact_name: string | null;
+  contact_company: string | null;
+  contact_email: string | null;
   owner_name: string | null;
 }
 
@@ -137,7 +139,7 @@ export async function getPlatformData(orgId: string): Promise<PlatformData> {
       [orgId]
     ),
     query<NamedDeal>(
-      `SELECT d.*, c.name AS contact_name, u.name AS owner_name
+      `SELECT d.*, c.name AS contact_name, c.company AS contact_company, c.email AS contact_email, u.name AS owner_name
        FROM deals d
        LEFT JOIN contacts c ON c.id = d.contact_id
        LEFT JOIN users u ON u.id = d.owner_id

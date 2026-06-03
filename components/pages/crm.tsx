@@ -7,7 +7,9 @@ import { formatDate, formatDateTime, formatShortDate, initials, money, stageTone
 import { getOrgId } from "@/lib/auth/session";
 import { pipelineValueCents } from "@/lib/data/crm";
 import { requireWorkspaceData } from "@/lib/data/page-data";
-import { CRMActivitiesClient, CRMCampaignsClient, CRMContactsClient, CRMDealsClient, CRMLeadsClient, CRMOpportunitiesTable } from "@/components/pages/crm-clients";
+import { CRMActivitiesClient, CRMCampaignsClient, CRMDealsClient, CRMLeadsClient, CRMOpportunitiesTable } from "@/components/pages/crm-clients";
+import { CRMContactsClient } from "@/app/(app)/crm/contacts/contacts-client";
+import { CRMPipelineClient } from "@/app/(app)/crm/pipeline/pipeline-client";
 
 export async function CRMDashboardView() {
   const data = await requireWorkspaceData();
@@ -126,41 +128,10 @@ export async function CRMContactsView() {
 
 export async function CRMPipelineView() {
   const data = await requireWorkspaceData();
-  const stages = ["lead", "qualified", "proposal", "negotiation", "won"] as const;
   return (
     <>
       <Topbar title="Pipeline" right={null} />
-      <PageSection>
-        <div className="grid gap-4 xl:grid-cols-5">
-          {stages.map((stage) => {
-            const deals = data.deals.filter((deal) => deal.stage === stage);
-            const total = deals.reduce((sum, deal) => sum + Number(deal.value_cents), 0);
-            return (
-              <div key={stage} className="rounded-xl border border-border bg-card p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-foreground capitalize">{stage}</div>
-                    <div className="text-xs text-muted-foreground">{deals.length} deals · {money(total)}</div>
-                  </div>
-                  <Badge tone={stageTone(stage)}>{deals.length}</Badge>
-                </div>
-                <div className="space-y-3">
-                  {deals.length ? deals.map((deal) => (
-                    <div key={deal.id} className="rounded-xl border border-border bg-secondary/40 p-3">
-                      <div className="text-sm font-medium text-foreground">{deal.title}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">{deal.contact_name ?? "No contact linked"}</div>
-                      <div className="mt-3 text-sm font-semibold text-accent">{money(deal.value_cents)}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">{formatDate(deal.expected_close)}</div>
-                    </div>
-                  )) : (
-                    <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">No deals</div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </PageSection>
+      <CRMPipelineClient deals={data.deals.map((deal) => ({ ...deal, days_in_stage: daysSince(deal.last_stage_change) }))} />
     </>
   );
 }
@@ -281,4 +252,8 @@ function last8Weeks(values: string[]) {
       value: count,
     };
   });
+}
+
+function daysSince(value: string) {
+  return Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000));
 }

@@ -42,20 +42,49 @@ export async function POST(req: NextRequest) {
     const subject = text(body.title) || text(body.subject);
     if (!subject) return NextResponse.json({ error: "subject required" }, { status: 400 });
     const activity = await one(
-      `INSERT INTO activities (org_id, kind, subject, body)
-       VALUES ($1,'note',$2,$3) RETURNING *`,
-      [orgId, subject, nullableText(body.body)]
+      `INSERT INTO activities (org_id, kind, subject, body, sentiment, duration_seconds)
+       VALUES ($1,'note',$2,$3,$4,$5) RETURNING *`,
+      [orgId, subject, nullableText(body.body), text(body.sentiment) || "neutral", nullableNumber(body.duration_seconds)]
     );
     return NextResponse.json(activity, { status: 201 });
   }
   if (kind === "deal") {
     const title = text(body.title);
     if (!title) return NextResponse.json({ error: "title required" }, { status: 400 });
-    return NextResponse.json(await createDeal({ org_id: orgId, title, value_cents: number(body.value_cents, 100000), stage: dealStage(body.stage) }), { status: 201 });
+    return NextResponse.json(await createDeal({
+      org_id: orgId,
+      title,
+      contact_id: nullableText(body.contact_id),
+      value_cents: number(body.value_cents, 100000),
+      stage: dealStage(body.stage),
+      probability: number(body.probability, 20),
+      expected_close: nullableText(body.expected_close),
+      next_action: nullableText(body.next_action),
+      competitor: nullableText(body.competitor),
+      notes: nullableText(body.notes),
+      owner_id: nullableText(body.owner_id),
+    }), { status: 201 });
   }
   const name = text(body.name);
   if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
-  return NextResponse.json(await createContact({ org_id: orgId, name, company: nullableText(body.company) ?? undefined, email: nullableText(body.email) ?? undefined, phone: nullableText(body.phone) ?? undefined }), { status: 201 });
+  return NextResponse.json(await createContact({
+    org_id: orgId,
+    name,
+    company: nullableText(body.company) ?? undefined,
+    email: nullableText(body.email) ?? undefined,
+    phone: nullableText(body.phone) ?? undefined,
+    title: nullableText(body.title) ?? undefined,
+    linkedin: nullableText(body.linkedin) ?? undefined,
+    twitter: nullableText(body.twitter) ?? undefined,
+    birthday: nullableText(body.birthday),
+    referral_source: nullableText(body.referral_source) ?? undefined,
+    first_contact_date: nullableText(body.first_contact_date),
+    lifetime_value_cents: number(body.lifetime_value_cents, 0),
+    notes: nullableText(body.notes) ?? undefined,
+    interests: nullableText(body.interests) ?? undefined,
+    tags: Array.isArray(body.tags) ? body.tags.map((value) => String(value).trim()).filter(Boolean) : undefined,
+    owner_id: nullableText(body.owner_id),
+  }), { status: 201 });
 }
 
 function text(value: unknown): string {
@@ -69,6 +98,10 @@ function nullableText(value: unknown): string | null {
 
 function number(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function nullableNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function dealStage(value: unknown) {

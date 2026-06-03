@@ -46,9 +46,21 @@ CREATE TABLE IF NOT EXISTS contacts (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
+  title       TEXT,
   company     TEXT,
   email       TEXT,
   phone       TEXT,
+  linkedin    TEXT,
+  twitter     TEXT,
+  birthday    DATE,
+  referral_source TEXT,
+  first_contact_date DATE,
+  lifetime_value_cents BIGINT NOT NULL DEFAULT 0,
+  health_score INT NOT NULL DEFAULT 100,
+  health_tier  TEXT NOT NULL DEFAULT 'healthy',
+  last_activity_at TIMESTAMPTZ,
+  notes       TEXT,
+  interests   TEXT,
   tags        TEXT[] DEFAULT '{}',
   owner_id    UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -63,8 +75,12 @@ CREATE TABLE IF NOT EXISTS deals (
   contact_id    UUID REFERENCES contacts(id) ON DELETE SET NULL,
   stage         deal_stage NOT NULL DEFAULT 'lead',
   value_cents   BIGINT NOT NULL DEFAULT 0,
+  probability   INT NOT NULL DEFAULT 20,
   owner_id      UUID REFERENCES users(id) ON DELETE SET NULL,
   expected_close DATE,
+  next_action   TEXT,
+  competitor    TEXT,
+  last_stage_change TIMESTAMPTZ NOT NULL DEFAULT now(),
   notes         TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -80,9 +96,14 @@ CREATE TABLE IF NOT EXISTS activities (
   user_id     UUID REFERENCES users(id) ON DELETE SET NULL,
   subject     TEXT,
   body        TEXT,
+  sentiment   TEXT NOT NULL DEFAULT 'neutral',
+  duration_seconds INT,
   occurred_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_activities_org ON activities(org_id, occurred_at DESC);
+
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS sentiment TEXT NOT NULL DEFAULT 'neutral';
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS duration_seconds INT;
 
 CREATE TABLE IF NOT EXISTS leads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -134,6 +155,24 @@ ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at TIMESTAMPTZ;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS sentiment TEXT DEFAULT 'neutral';
+
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS linkedin TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS twitter TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS birthday DATE;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS referral_source TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS first_contact_date DATE;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lifetime_value_cents BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS health_score INT NOT NULL DEFAULT 100;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS health_tier TEXT NOT NULL DEFAULT 'healthy';
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS interests TEXT;
+
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS probability INT NOT NULL DEFAULT 20;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS next_action TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS competitor TEXT;
+ALTER TABLE deals ADD COLUMN IF NOT EXISTS last_stage_change TIMESTAMPTZ NOT NULL DEFAULT now();
 
 CREATE INDEX IF NOT EXISTS idx_leads_org_score ON leads(org_id, score DESC);
 CREATE INDEX IF NOT EXISTS idx_leads_org_tier ON leads(org_id, score_tier);

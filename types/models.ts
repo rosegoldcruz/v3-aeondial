@@ -16,22 +16,28 @@ export interface User {
 }
 
 export interface Contact {
-  id: string; org_id: string; name: string; company: string | null;
-  email: string | null; phone: string | null; tags: string[];
+  id: string; org_id: string; name: string; title: string | null;
+  company: string | null; email: string | null; phone: string | null;
+  linkedin: string | null; twitter: string | null; birthday: string | null;
+  referral_source: string | null; first_contact_date: string | null;
+  lifetime_value_cents: number; health_score: number; health_tier: string;
+  last_activity_at: string | null; notes: string | null; interests: string | null;
+  tags: string[];
   owner_id: string | null; created_at: string; updated_at: string;
 }
 
 export interface Deal {
   id: string; org_id: string; title: string; contact_id: string | null;
-  stage: DealStage; value_cents: number; owner_id: string | null;
-  expected_close: string | null; notes: string | null;
+  stage: DealStage; value_cents: number; probability: number; owner_id: string | null;
+  expected_close: string | null; next_action: string | null; competitor: string | null;
+  last_stage_change: string; notes: string | null;
   created_at: string; updated_at: string;
 }
 
 export interface Activity {
   id: string; org_id: string; kind: ActivityKind;
   contact_id: string | null; deal_id: string | null; user_id: string | null;
-  subject: string | null; body: string | null; occurred_at: string;
+  subject: string | null; body: string | null; sentiment: string; duration_seconds: number | null; occurred_at: string;
 }
 
 export interface Lead {
