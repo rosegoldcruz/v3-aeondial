@@ -5,24 +5,40 @@
 :root { color-scheme: dark; }
 
 html, body {
-  background: #0A0806;
-  color: #F2E8D9;
-  font-family: 'DM Mono', 'Courier New', monospace;
+  background: oklch(0.08 0.005 260);
+  color: oklch(0.95 0 0);
+  font-family: "Inter", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* AEON node-grid backdrop — subtle, alive, not noisy */
-.aeon-grid {
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(232,123,46,0.08) 1px, transparent 0);
-  background-size: 28px 28px;
+/* Animate-in utility used on every card and row */
+.animate-in {
+  animation: slideInFromBottom 0.5s ease forwards;
+  opacity: 0;
+}
+@keyframes slideInFromBottom {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.slide-in-from-bottom-4 { --tw-translate-y: 1rem; }
+.slide-in-from-left-2   { animation-name: slideInFromLeft; }
+.slide-in-from-right-2  { animation-name: slideInFromRight; }
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInFromRight {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.fade-in { animation-name: fadeIn; }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #110E0A; }
-::-webkit-scrollbar-thumb { background: #2A2218; border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #4A3A2A; }
-
-.card { background:#18140F; border:1px solid #2A2218; border-radius:12px; }
-.pill { border-radius:20px; border:1px solid #2A2218; padding:6px 14px; font-size:12px; }
-.pill-on { border-color:#E87B2E; background:rgba(232,123,46,0.12); color:#E87B2E; }
+/* Scrollbar */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: oklch(0.09 0.005 260); }
+::-webkit-scrollbar-thumb { background: oklch(0.22 0.005 260); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.30 0.005 260); }

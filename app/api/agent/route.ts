@@ -15,7 +15,10 @@ const SYSTEMS: Record<string, string> = {
 export async function POST(req: NextRequest) {
   const orgId = await getOrgId();
   if (!orgId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const { kind = "code", prompt } = await req.json();
+  if (!process.env.DEEPSEEK_API_KEY) return NextResponse.json({ error: "Add API key in /admin/integrations" }, { status: 400 });
+  const body = (await req.json()) as Record<string, unknown>;
+  const kind = typeof body.kind === "string" ? body.kind : "code";
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt) return NextResponse.json({ error: "prompt required" }, { status: 400 });
 
   const { text } = await generateText({

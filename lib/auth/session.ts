@@ -1,6 +1,21 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "./options";
 import { one } from "@/lib/db/pool";
+import type { UserRole } from "@/types/models";
+
+interface SessionUserWithSub {
+  sub?: string;
+  email?: string | null;
+}
+
+interface CurrentUser {
+  id: string;
+  org_id: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  avatar_url: string | null;
+}
 
 // Resolves the current ZITADEL session to an org_id.
 // Maps the OIDC subject -> users.zitadel_sub -> users.org_id.
@@ -14,7 +29,8 @@ export async function getOrgId(): Promise<string | null> {
 
   try {
     const session = await getServerSession(authOptions);
-    const sub = (session?.user as any)?.sub as string | undefined;
+    const sessionUser = session?.user as SessionUserWithSub | undefined;
+    const sub = sessionUser?.sub;
 
     if (sub) {
       const row = await one<{ org_id: string }>(
@@ -24,25 +40,39 @@ export async function getOrgId(): Promise<string | null> {
       if (row?.org_id) return row.org_id;
     }
 
+    if (sessionUser?.email) {
+      const row = await one<{ org_id: string }>(
+        "SELECT org_id FROM users WHERE email = $1 AND active = true LIMIT 1",
+        [sessionUser.email]
+      );
+      if (row?.org_id) return row.org_id;
+    }
+
     const devOrg = process.env.AEON_DEV_ORG_ID;
-    if (devOrg && process.env.NODE_ENV !== "production") return devOrg;
+    if (devOrg) return devOrg;
 
     return null;
   } catch {
-    return null;
+    return process.env.AEON_DEV_ORG_ID ?? null;
   }
 }
 
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!process.env.POSTGRES_URL) return null;
 
   try {
     const session = await getServerSession(authOptions);
-    const sub = (session?.user as any)?.sub as string | undefined;
-    if (!sub) return null;
-    return one(
-      "SELECT id, org_id, email, name, role, avatar_url FROM users WHERE zitadel_sub=$1 LIMIT 1",
-      [sub]
+    const sessionUser = session?.user as SessionUserWithSub | undefined;
+    const sub = sessionUser?.sub;
+    const email = sessionUser?.email;
+    if (!sub && !email) return null;
+    return one<CurrentUser>(
+      `SELECT id, org_id, email, name, role, avatar_url
+       FROM users
+       WHERE (zitadel_sub=$1 AND $1 IS NOT NULL) OR (email=$2 AND $2 IS NOT NULL)
+       ORDER BY zitadel_sub NULLS LAST
+       LIMIT 1`,
+      [sub ?? null, email ?? null]
     );
   } catch {
     return null;

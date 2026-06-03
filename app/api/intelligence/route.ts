@@ -10,7 +10,9 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const orgId = await getOrgId();
   if (!orgId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const { question } = await req.json();
+  if (!process.env.DEEPSEEK_API_KEY) return NextResponse.json({ error: "Add API key in /admin/integrations" }, { status: 400 });
+  const body = (await req.json()) as Record<string, unknown>;
+  const question = typeof body.question === "string" ? body.question.trim() : "";
   if (!question) return NextResponse.json({ error: "question required" }, { status: 400 });
 
   const { text } = await generateText({

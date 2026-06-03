@@ -1,44 +1,196 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV, NAV_GROUPS } from "./nav-config";
+import { useState } from "react";
+import {
+  LayoutDashboard, Users, GitBranch, Handshake, Building2,
+  TrendingUp, ChartColumn, Settings, ChevronLeft, ChevronRight,
+  Phone, Megaphone, BrainCircuit, Bot, Wallet, ClipboardList,
+  Package, FolderOpen, ShieldCheck, UserCog, Zap, Mail,
+  MessageSquare, Calendar, Target, FileText, Clock, BookOpen,
+  Boxes, HardDrive, BarChart3, Bell, Search
+} from "lucide-react";
+
+const NAV = [
+  {
+    group: "// CRM",
+    items: [
+      { href: "/crm/dashboard",     label: "Overview",      icon: LayoutDashboard },
+      { href: "/crm/leads",         label: "Leads",         icon: Target },
+      { href: "/crm/contacts",      label: "Contacts",      icon: Building2 },
+      { href: "/crm/pipeline",      label: "Pipeline",      icon: GitBranch },
+      { href: "/crm/deals",         label: "Deals",         icon: Handshake },
+      { href: "/crm/opportunities", label: "Opportunities", icon: TrendingUp },
+      { href: "/crm/activities",    label: "Activities",    icon: Zap },
+      { href: "/crm/campaigns",     label: "Campaigns",     icon: Megaphone },
+      { href: "/crm/calendar",      label: "Calendar",      icon: Calendar },
+    ],
+  },
+  {
+    group: "// SALES",
+    items: [
+      { href: "/sales/overview",   label: "Overview",    icon: LayoutDashboard },
+      { href: "/sales/forecasts",  label: "Forecasts",   icon: ChartColumn },
+      { href: "/sales/reports",    label: "Reports",     icon: BarChart3 },
+      { href: "/sales/team",       label: "Team",        icon: Users },
+    ],
+  },
+  {
+    group: "// DIALER",
+    items: [
+      { href: "/dialer/dashboard",   label: "Dashboard",   icon: Phone },
+      { href: "/dialer/campaigns",   label: "Campaigns",   icon: Megaphone },
+      { href: "/dialer/live",        label: "Live Monitor",icon: Bell },
+      { href: "/dialer/compliance",  label: "DNC / TCPA",  icon: ShieldCheck },
+      { href: "/dialer/recordings",  label: "Recordings",  icon: FileText },
+    ],
+  },
+  {
+    group: "// MARKETING",
+    items: [
+      { href: "/marketing/email",      label: "Email Blasts",  icon: Mail },
+      { href: "/marketing/sms",        label: "SMS Blasts",    icon: MessageSquare },
+      { href: "/marketing/materials",  label: "Materials",     icon: FileText },
+      { href: "/marketing/automation", label: "Automation",    icon: Zap },
+    ],
+  },
+  {
+    group: "// INTELLIGENCE",
+    items: [
+      { href: "/intelligence/chat",    label: "Ask AEON",     icon: BrainCircuit },
+      { href: "/intelligence/docs",    label: "Knowledge",    icon: BookOpen },
+      { href: "/intelligence/queries", label: "Query Log",    icon: ClipboardList },
+    ],
+  },
+  {
+    group: "// AGENT",
+    items: [
+      { href: "/agent/code",      label: "Code Agent",      icon: Bot },
+      { href: "/agent/marketing", label: "Marketing Agent", icon: Megaphone },
+      { href: "/agent/history",   label: "Run History",     icon: Clock },
+    ],
+  },
+  {
+    group: "// FINANCE",
+    items: [
+      { href: "/finance/dashboard",      label: "Overview",       icon: LayoutDashboard },
+      { href: "/finance/ledger",         label: "Ledger",         icon: ClipboardList },
+      { href: "/finance/subscriptions",  label: "Subscriptions",  icon: Wallet },
+    ],
+  },
+  {
+    group: "// INTERNAL OPS",
+    items: [
+      { href: "/ops/tasks",       label: "Tasks",       icon: ClipboardList },
+      { href: "/ops/work-orders", label: "Work Orders", icon: Boxes },
+      { href: "/ops/employees",   label: "Employees",   icon: Users },
+      { href: "/ops/timesheets",  label: "Timesheets",  icon: Clock },
+      { href: "/ops/sops",        label: "SOPs",        icon: BookOpen },
+      { href: "/ops/requests",    label: "Requests",    icon: FileText },
+    ],
+  },
+  {
+    group: "// INVENTORY",
+    items: [
+      { href: "/inventory/items",   label: "SKUs",         icon: Package },
+      { href: "/inventory/catalog", label: "Catalog",      icon: HardDrive },
+      { href: "/inventory/bids",    label: "Bids",         icon: BarChart3 },
+    ],
+  },
+  {
+    group: "// FILES",
+    items: [
+      { href: "/files/drive",     label: "Google Drive",  icon: HardDrive },
+      { href: "/files/documents", label: "Documents",     icon: FileText },
+    ],
+  },
+  {
+    group: "// ADMIN",
+    items: [
+      { href: "/admin/users",        label: "Users",        icon: UserCog },
+      { href: "/admin/integrations", label: "Integrations", icon: Zap },
+      { href: "/admin/settings",     label: "Settings",     icon: Settings },
+    ],
+  },
+];
 
 export function Sidebar() {
   const path = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <aside className="hidden md:flex md:flex-col w-60 shrink-0 border-r border-line bg-surface h-screen sticky top-0">
-      <div className="px-5 py-5 border-b border-line flex items-center gap-3">
-        <span className="text-2xl">🦊</span>
-        <div>
-          <div className="text-lg font-medium tracking-tight text-ink">AEON Dial</div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted">Operating System</div>
+    <aside
+      className="fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-out flex flex-col"
+      style={{ width: collapsed ? "64px" : "260px" }}
+    >
+      {/* Logo */}
+      <div className="h-16 flex items-center px-4 border-b border-sidebar-border shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0">
+            <span className="text-lg">🦊</span>
+          </div>
+          {!collapsed && (
+            <div className="overflow-hidden">
+              <div className="text-base font-semibold text-sidebar-foreground whitespace-nowrap">AEON Dial</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-widest whitespace-nowrap">Operating System</div>
+            </div>
+          )}
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto py-3">
-        {NAV_GROUPS.map((group) => {
-          const items = NAV.filter((n) => n.group === group);
-          if (!items.length) return null;
-          return (
-            <div key={group} className="px-3 mb-4">
-              <div className="px-2 mb-1 text-[10px] uppercase tracking-[0.18em] text-dim">{group}</div>
-              {items.map((item) => {
-                const active = path === item.href || path.startsWith(item.href + "/");
-                const Icon = item.icon;
-                return (
-                  <Link key={item.href} href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      active ? "bg-emberdim text-ember" : "text-muted hover:text-ink hover:bg-card"
-                    }`}>
-                    <Icon size={16} strokeWidth={1.75} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          );
-        })}
+
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+        {NAV.map((section) => (
+          <div key={section.group} className="mb-2">
+            {!collapsed && (
+              <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                {section.group}
+              </div>
+            )}
+            {section.items.map((item) => {
+              const active = path === item.href || path.startsWith(item.href + "/");
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
+                    active
+                      ? "bg-sidebar-accent text-sidebar-foreground"
+                      : "text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  }`}
+                >
+                  {/* Active left indicator — exact match from salesops dashboard */}
+                  <span
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-accent transition-all duration-300"
+                    style={{ opacity: active ? 1 : 0 }}
+                  />
+                  <Icon
+                    size={18}
+                    strokeWidth={1.75}
+                    className={`shrink-0 transition-transform duration-200 ${
+                      active ? "text-accent" : "group-hover:scale-110"
+                    }`}
+                  />
+                  {!collapsed && (
+                    <span className="whitespace-nowrap transition-all duration-300">{item.label}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
-      <div className="px-5 py-4 border-t border-line text-[10px] text-dim">v3.0.0 · Hetzner</div>
+
+      {/* Collapse toggle */}
+      <div className="p-3 border-t border-sidebar-border shrink-0">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-200"
+        >
+          {collapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /><span>Collapse</span></>}
+        </button>
+      </div>
     </aside>
   );
 }

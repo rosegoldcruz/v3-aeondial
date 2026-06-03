@@ -84,6 +84,73 @@ CREATE TABLE IF NOT EXISTS activities (
 );
 CREATE INDEX IF NOT EXISTS idx_activities_org ON activities(org_id, occurred_at DESC);
 
+CREATE TABLE IF NOT EXISTS leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  company TEXT,
+  email TEXT,
+  phone TEXT,
+  status TEXT NOT NULL DEFAULT 'new',
+  source TEXT,
+  campaign TEXT,
+  budget_range TEXT,
+  pain_points TEXT,
+  decision_timeline TEXT,
+  last_contacted_at TIMESTAMPTZ,
+  notes TEXT,
+  tags TEXT[] DEFAULT '{}',
+  sentiment TEXT NOT NULL DEFAULT 'neutral',
+  score INT NOT NULL DEFAULT 0,
+  score_tier TEXT NOT NULL DEFAULT 'cold',
+  owner_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_leads_org_status ON leads(org_id, status);
+
+CREATE TABLE IF NOT EXISTS lead_activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  subject TEXT,
+  body TEXT,
+  sentiment TEXT NOT NULL DEFAULT 'neutral',
+  duration_seconds INT,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_lead_activities_lead ON lead_activities(lead_id, occurred_at DESC);
+
+-- Idempotent column adds for existing databases
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS score INT NOT NULL DEFAULT 0;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS score_tier TEXT NOT NULL DEFAULT 'cold';
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS budget_range TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS pain_points TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS decision_timeline TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_contacted_at TIMESTAMPTZ;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS sentiment TEXT DEFAULT 'neutral';
+
+CREATE INDEX IF NOT EXISTS idx_leads_org_score ON leads(org_id, score DESC);
+CREATE INDEX IF NOT EXISTS idx_leads_org_tier ON leads(org_id, score_tier);
+
+CREATE TABLE IF NOT EXISTS campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft',
+  sent INT NOT NULL DEFAULT 0,
+  opens INT NOT NULL DEFAULT 0,
+  clicks INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_campaigns_org_type ON campaigns(org_id, type);
+
 -- ============================================================
 -- FINANCE MODULE  (replaces VulpineOps localStorage)
 -- ============================================================
@@ -135,6 +202,20 @@ CREATE TABLE IF NOT EXISTS catalog_items (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_catalog_org_line ON catalog_items(org_id, line);
+
+CREATE TABLE IF NOT EXISTS inventory_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sku TEXT,
+  category TEXT,
+  qty INT NOT NULL DEFAULT 0,
+  cost_cents BIGINT NOT NULL DEFAULT 0,
+  list_cents BIGINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_inventory_items_org_category ON inventory_items(org_id, category);
 
 CREATE TABLE IF NOT EXISTS bids (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -202,6 +283,93 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 );
 
 -- ============================================================
+-- OPS, INVENTORY SUPPORT, COMPLIANCE, ADMIN AUDIT
+-- ============================================================
+CREATE TABLE IF NOT EXISTS tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  assignee_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  due_date DATE,
+  status TEXT NOT NULL DEFAULT 'open',
+  priority TEXT NOT NULL DEFAULT 'medium',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_org_status ON tasks(org_id, status);
+
+CREATE TABLE IF NOT EXISTS work_orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  assignee_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  due_date DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_work_orders_org_status ON work_orders(org_id, status);
+
+CREATE TABLE IF NOT EXISTS employees (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  role TEXT,
+  email TEXT,
+  phone TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_employees_org_status ON employees(org_id, status);
+
+CREATE TABLE IF NOT EXISTS timesheets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  hours NUMERIC(5,2) NOT NULL,
+  job_code TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_timesheets_org_date ON timesheets(org_id, date DESC);
+
+CREATE TABLE IF NOT EXISTS sops (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  category TEXT,
+  version TEXT NOT NULL DEFAULT '1.0',
+  content TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sops_org_category ON sops(org_id, category);
+
+CREATE TABLE IF NOT EXISTS dnc_numbers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  phone TEXT NOT NULL,
+  reason TEXT,
+  added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(org_id, phone)
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  resource_id TEXT,
+  ip TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_log_org_created ON audit_log(org_id, created_at DESC);
+
+-- ============================================================
 -- updated_at trigger
 -- ============================================================
 CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS trigger AS $$
@@ -213,5 +381,15 @@ DO $$ BEGIN
   CREATE TRIGGER trg_deals_touch BEFORE UPDATE ON deals
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
   CREATE TRIGGER trg_bids_touch BEFORE UPDATE ON bids
+    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+  CREATE TRIGGER trg_leads_touch BEFORE UPDATE ON leads
+    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+  CREATE TRIGGER trg_tasks_touch BEFORE UPDATE ON tasks
+    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+  CREATE TRIGGER trg_work_orders_touch BEFORE UPDATE ON work_orders
+    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+  CREATE TRIGGER trg_sops_touch BEFORE UPDATE ON sops
+    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+  CREATE TRIGGER trg_inventory_items_touch BEFORE UPDATE ON inventory_items
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
