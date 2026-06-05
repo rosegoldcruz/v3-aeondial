@@ -20,12 +20,30 @@ export async function POST(req: NextRequest) {
   const orgId = await getOrgId();
   if (!orgId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = (await req.json()) as {
-    title: string;
-    line: CabinetLine;
-    price_margin: number;
-    lines: { catalog_item_id?: string; description: string; qty: number; list_cents: number }[];
+    title?: string;
+    line?: CabinetLine;
+    price_margin?: number;
+    lines?: { catalog_item_id?: string; description: string; qty: number; list_cents: number }[];
   };
-  return NextResponse.json(await createBid({ org_id: orgId, ...body }), { status: 201 });
+  if (!body.title || !body.title.trim()) {
+    return NextResponse.json({ error: "title is required" }, { status: 400 });
+  }
+  if (!body.line || (body.line !== "framed" && body.line !== "frameless")) {
+    return NextResponse.json({ error: "line must be 'framed' or 'frameless'" }, { status: 400 });
+  }
+  if (body.price_margin === undefined || body.price_margin === null || typeof body.price_margin !== "number" || !Number.isFinite(body.price_margin)) {
+    return NextResponse.json({ error: "price_margin is required and must be a number" }, { status: 400 });
+  }
+  if (!Array.isArray(body.lines) || body.lines.length === 0) {
+    return NextResponse.json({ error: "lines must be a non-empty array" }, { status: 400 });
+  }
+  return NextResponse.json(await createBid({
+    org_id: orgId,
+    title: body.title.trim(),
+    line: body.line,
+    price_margin: body.price_margin,
+    lines: body.lines,
+  }), { status: 201 });
 }
 
 function cabinetLine(value: string | null): CabinetLine | null {

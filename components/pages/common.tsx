@@ -5,11 +5,11 @@ import { Badge, Card } from "@/components/ui/primitives";
 import { clamp, formatDate, formatDateTime, formatShortDate, initials, money, stageTone, timeAgo } from "@/lib/ui/format";
 
 export function PageSection({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`space-y-6 px-6 py-6 ${className}`}>{children}</section>;
+  return <section className={`space-y-5 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-6 ${className}`}>{children}</section>;
 }
 
 export function StatGrid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{children}</div>;
+  return <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">{children}</div>;
 }
 
 export function GridTwo({ left, right }: { left: ReactNode; right: ReactNode }) {
@@ -23,7 +23,7 @@ export function GridHalves({ left, right }: { left: ReactNode; right: ReactNode 
 export function SectionCard({ title, action, children, className = "" }: { title: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <Card className={`space-y-4 animate-in fade-in slide-in-from-bottom-4 ${className}`}>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {action}
       </div>
@@ -32,12 +32,13 @@ export function SectionCard({ title, action, children, className = "" }: { title
   );
 }
 
-export function ActionButton({ children, type = "button", onClick, className = "", disabled = false }: { children: ReactNode; type?: "button" | "submit"; onClick?: () => void; className?: string; disabled?: boolean }) {
+export function ActionButton({ children, type = "button", onClick, className = "", disabled = false, title }: { children: ReactNode; type?: "button" | "submit"; onClick?: () => void; className?: string; disabled?: boolean; title?: string }) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`inline-flex h-9 items-center justify-center rounded-lg border border-accent/40 bg-accent px-4 text-sm font-medium text-accent-foreground transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
     >
       {children}
@@ -45,12 +46,14 @@ export function ActionButton({ children, type = "button", onClick, className = "
   );
 }
 
-export function GhostButton({ children, type = "button", onClick, className = "" }: { children: ReactNode; type?: "button" | "submit"; onClick?: () => void; className?: string }) {
+export function GhostButton({ children, type = "button", onClick, className = "", disabled = false, title }: { children: ReactNode; type?: "button" | "submit"; onClick?: () => void; className?: string; disabled?: boolean; title?: string }) {
   return (
     <button
       type={type}
       onClick={onClick}
-      className={`inline-flex h-9 items-center justify-center rounded-lg border border-border bg-secondary px-3 text-sm font-medium text-foreground transition hover:border-accent/40 hover:text-accent ${className}`}
+      disabled={disabled}
+      title={title}
+      className={`inline-flex h-9 items-center justify-center rounded-lg border border-border bg-secondary px-3 text-sm font-medium text-foreground transition hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
     >
       {children}
     </button>

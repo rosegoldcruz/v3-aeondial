@@ -1,7 +1,7 @@
 import { Topbar } from "@/components/shell/topbar";
 import { Badge, Stat } from "@/components/ui/primitives";
 import { OpsSopsClient, OpsTasksClient } from "@/components/pages/workbench-clients";
-import { DataTable, PageSection, SectionCard, StatGrid, TableHeader, TableShell, Td, Th } from "@/components/pages/common";
+import { DataTable, GhostButton, PageSection, SectionCard, StatGrid, TableHeader, TableShell, Td, Th } from "@/components/pages/common";
 import { requireWorkspaceData } from "@/lib/data/page-data";
 import { formatDate, formatShortDate, stageTone, timeAgo, initials } from "@/lib/ui/format";
 import { Avatar } from "@/components/ui/primitives";
@@ -67,7 +67,7 @@ export async function OpsWorkOrdersView() {
                       <Td><Badge tone={stageTone(row.status)}>{row.status}</Badge></Td>
                       <Td>{formatDate(row.due_date)}</Td>
                       <Td>{row.notes ?? "No notes"}</Td>
-                      <Td>View</Td>
+                      <Td><GhostButton title="Coming soon" disabled>View</GhostButton></Td>
                     </tr>
                   ))}
                 </tbody>
@@ -107,7 +107,7 @@ export async function OpsEmployeesView() {
                       <Td>{row.email ?? "No email"}</Td>
                       <Td>{row.phone ?? "No phone"}</Td>
                       <Td><Badge tone={stageTone(row.status)}>{row.status}</Badge></Td>
-                      <Td>Edit</Td>
+                      <Td><GhostButton title="Coming soon" disabled>Edit</GhostButton></Td>
                     </tr>
                   ))}
                 </tbody>
@@ -147,7 +147,7 @@ export async function OpsTimesheetsView() {
                       <Td>{row.hours}</Td>
                       <Td>{row.job_code ?? "OPS"}</Td>
                       <Td><Badge tone={stageTone(row.status)}>{row.status}</Badge></Td>
-                      <Td>Approve / Reject</Td>
+                      <Td><GhostButton title="Coming soon" disabled>Approve</GhostButton></Td>
                     </tr>
                   ))}
                 </tbody>
@@ -199,7 +199,7 @@ export async function OpsRequestsView() {
                       <Td>{row.category}</Td>
                       <Td>{formatShortDate(row.date)}</Td>
                       <Td>{row.assignee}</Td>
-                      <Td>View</Td>
+                      <Td><GhostButton title="Coming soon" disabled>View</GhostButton></Td>
                     </tr>
                   ))}
                 </tbody>

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { PageSection, SelectInput, TextArea, TextInput } from "@/components/pages/common";
 import { Avatar, Badge, ProgressBar } from "@/components/ui/primitives";
+import { CallButton } from "@/components/pages/dialer-client";
 import type { LeadPoolStats, LeadWithActivities, NamedLead } from "@/lib/data/leads";
 import type { LeadActivity } from "@/types/models";
 import { fmtUSD } from "@/lib/db/money";
@@ -81,9 +82,9 @@ function scoreBarColor(score: number) {
 }
 
 function scoreRingColor(tier: string) {
-  if (tier === "hot") return "oklch(0.65 0.22 25)";
-  if (tier === "warm") return "oklch(0.8 0.15 80)";
-  return "oklch(0.7 0.18 220)";
+  if (tier === "hot") return "oklch(var(--destructive) / 1)";
+  if (tier === "warm") return "oklch(var(--warning) / 1)";
+  return "oklch(var(--accent) / 1)";
 }
 
 function ScoreRing({ score, tier }: { score: number; tier: string }) {
@@ -92,7 +93,7 @@ function ScoreRing({ score, tier }: { score: number; tier: string }) {
   const offset = c - (score / 100) * c;
   return (
     <svg width="88" height="88" viewBox="0 0 88 88" className="shrink-0">
-      <circle cx="44" cy="44" r={r} stroke="oklch(0.22 0.005 260)" strokeWidth="4" fill="none" />
+      <circle cx="44" cy="44" r={r} stroke="oklch(var(--chart-grid) / 1)" strokeWidth="4" fill="none" />
       <circle
         cx="44"
         cy="44"
@@ -647,6 +648,11 @@ export function LeadsClient({
                   </button>
                 ))}
               </div>
+              {detail.phone && (
+                <div className="mt-3">
+                  <CallButton leadId={detail.id} toNumber={detail.phone} size="md" />
+                </div>
+              )}
             </div>
 
             <details className="rounded-xl border border-border p-4" open>

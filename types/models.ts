@@ -152,3 +152,17 @@ export interface AuditLog {
   id: string; org_id: string; user_id: string | null; action: string;
   resource: string; resource_id: string | null; ip: string | null; created_at: string;
 }
+
+export type CallDirection = "outbound" | "inbound";
+export type CallStatus = "initiated" | "ringing" | "answered" | "completed" | "failed" | "busy" | "no_answer" | "cancelled";
+
+export interface Call {
+  id: string; org_id: string; user_id: string | null;
+  lead_id: string | null; contact_id: string | null;
+  direction: CallDirection; from_number: string | null; to_number: string;
+  status: CallStatus; started_at: string; answered_at: string | null;
+  ended_at: string | null; duration_s: number | null;
+  disposition: string | null; recording_url: string | null;
+  ari_channel_id: string | null;
+  created_at: string; updated_at: string;
+}

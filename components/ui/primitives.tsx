@@ -7,7 +7,7 @@ export function Stat({ label, value, delta, tone = "flat" }: {
   tone?: "flat" | "up" | "down";
 }) {
   return (
-    <div className="group relative bg-card border border-border rounded-xl p-5 hover:border-accent/50 transition-all duration-300 overflow-hidden animate-in fade-in slide-in-from-bottom-4">
+    <div className="group relative bg-card border border-border rounded-xl p-4 hover:border-accent/50 transition-all duration-300 overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:p-5">
       <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       <div className="relative">
         <div className="flex items-start justify-between mb-3">
@@ -15,7 +15,7 @@ export function Stat({ label, value, delta, tone = "flat" }: {
           <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center group-hover:bg-accent/10 transition-colors duration-300" />
         </div>
         <div className="flex items-end gap-3">
-          <span className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">{value}</span>
+          <span className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight break-words">{value}</span>
           {delta && (
             <div className={`flex items-center gap-1 text-sm font-medium mb-1 ${
               delta.dir === "up" ? "text-success" : "text-destructive"
@@ -32,7 +32,7 @@ export function Stat({ label, value, delta, tone = "flat" }: {
 // Card — matches salesops bg-card border rounded-xl
 export function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={`bg-card border border-border rounded-xl p-5 ${className}`}>
+    <div className={`bg-card border border-border rounded-xl p-4 sm:p-5 ${className}`}>
       {children}
     </div>
   );

@@ -246,7 +246,7 @@ export function MarketingAutomationClient({ campaigns }: { campaigns: Campaign[]
         <Stat label="Success Rate" value="96%" />
         <Stat label="Pending" value={String(rows.filter((row) => !row.active).length)} />
       </StatGrid>
-      <SectionCard title="Automation Flows" action={<ActionButton><Plus size={14} className="mr-2" />New Automation</ActionButton>}>
+      <SectionCard title="Automation Flows" action={<ActionButton title="Coming soon" disabled><Plus size={14} className="mr-2" />New Automation</ActionButton>}>
         <div className="space-y-3">
           {rows.map((row) => (
             <div key={row.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-secondary/30 px-4 py-3">
@@ -257,7 +257,7 @@ export function MarketingAutomationClient({ campaigns }: { campaigns: Campaign[]
                 <span className="text-muted-foreground">→</span>
                 <Badge tone="success">{row.action}</Badge>
               </div>
-              <GhostButton onClick={() => setRows(rows.map((item) => item.id === row.id ? { ...item, active: !item.active } : item))}>
+              <GhostButton title="Coming soon" disabled>
                 {row.active ? <Pause size={14} className="mr-2" /> : <Play size={14} className="mr-2" />}
                 {row.active ? "Pause" : "Resume"}
               </GhostButton>
@@ -547,6 +547,17 @@ export function FinanceSubscriptionsClient({ subscriptions, entities }: { subscr
     if (res.ok) setRows([data as NamedSubscription, ...rows]);
   }
 
+  async function toggle(id: string) {
+    const res = await fetch(`/api/finance/${id}/toggle`, { method: "POST" });
+    if (res.ok) setRows(rows.map((item) => item.id === id ? { ...item, active: !item.active } : item));
+  }
+
+  async function remove(id: string) {
+    if (!confirm("Delete this subscription?")) return;
+    const res = await fetch(`/api/finance/${id}`, { method: "DELETE" });
+    if (res.ok) setRows(rows.filter((item) => item.id !== id));
+  }
+
   const filtered = rows.filter((row) => !entityId || row.entity_id === entityId);
   return (
     <PageSection>
@@ -579,8 +590,8 @@ export function FinanceSubscriptionsClient({ subscriptions, entities }: { subscr
             <div className="mt-3 flex items-center justify-between">
               <Badge tone="muted">{row.category}</Badge>
               <div className="flex gap-2">
-                <GhostButton onClick={() => setRows(rows.map((item) => item.id === row.id ? { ...item, active: !item.active } : item))}>{row.active ? <Pause size={14} /> : <Play size={14} />}</GhostButton>
-                <GhostButton onClick={() => setRows(rows.filter((item) => item.id !== row.id))}><Trash2 size={14} /></GhostButton>
+                <GhostButton onClick={() => void toggle(row.id)}>{row.active ? <Pause size={14} /> : <Play size={14} />}</GhostButton>
+                <GhostButton onClick={() => void remove(row.id)}><Trash2 size={14} /></GhostButton>
               </div>
             </div>
           </div>
@@ -810,7 +821,7 @@ export function FilesDocumentsClient({ docs }: { docs: RagDocument[] }) {
                   <Td>AEON</Td>
                   <Td>{formatShortDate(row.created_at)}</Td>
                   <Td>2.4 MB</Td>
-                  <Td><div className="flex gap-2"><GhostButton><Eye size={14} /></GhostButton><GhostButton><Download size={14} /></GhostButton></div></Td>
+                  <Td><div className="flex gap-2"><GhostButton title="Coming soon" disabled><Eye size={14} /></GhostButton><GhostButton title="Coming soon" disabled><Download size={14} /></GhostButton></div></Td>
                 </tr>
               ))}
             </tbody>
@@ -868,7 +879,7 @@ export function AdminUsersClient({ users }: { users: User[] }) {
                   <Td><Badge tone={stageTone(row.role)}>{row.role}</Badge></Td>
                   <Td><Badge tone={row.active ? "success" : "muted"}>{row.active ? "active" : "inactive"}</Badge></Td>
                   <Td>{timeAgo(row.created_at)}</Td>
-                  <Td><div className="flex gap-2"><GhostButton><Play size={14} /></GhostButton><GhostButton><Pause size={14} /></GhostButton></div></Td>
+                  <Td><div className="flex gap-2"><GhostButton title="Coming soon" disabled><Play size={14} /></GhostButton><GhostButton title="Coming soon" disabled><Pause size={14} /></GhostButton></div></Td>
                 </tr>
               ))}
             </tbody>
@@ -913,7 +924,7 @@ export function DialerComplianceClient({ numbers }: { numbers: DncNumber[] }) {
       <div className="grid gap-3 rounded-xl border border-border bg-card p-5 md:grid-cols-4">
         <TextInput value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Phone" />
         <TextInput value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason" />
-        <GhostButton><Upload size={14} className="mr-2" />Upload CSV</GhostButton>
+        <GhostButton title="Coming soon" disabled><Upload size={14} className="mr-2" />Upload CSV</GhostButton>
         <ActionButton onClick={submit}><Plus size={14} className="mr-2" />Add Number</ActionButton>
       </div>
       <DataTable>
@@ -967,7 +978,7 @@ export function DriveBrowserClient({ docs, connected }: { docs: RagDocument[]; c
                     <div className="text-sm font-medium text-foreground">{doc.title ?? "Untitled"}</div>
                     <div className="text-xs text-muted-foreground">{doc.source} · {formatDateTime(doc.created_at)}</div>
                   </div>
-                  <GhostButton>Open in Drive</GhostButton>
+                  <GhostButton title="Coming soon" disabled>Open in Drive</GhostButton>
                 </div>
               ))}
             </div>
@@ -977,5 +988,61 @@ export function DriveBrowserClient({ docs, connected }: { docs: RagDocument[]; c
         )}
       </SectionCard>
     </PageSection>
+  );
+}
+
+export function AdminIntegrationsClient({ integrations }: {
+  integrations: ReadonlyArray<{ name: string; envKey: string; connected: boolean }>;
+}) {
+  const [states, setStates] = useState(() =>
+    integrations.map((item) => ({ ...item, value: "", saving: false, saved: item.connected, error: "" }))
+  );
+
+  async function save(envKey: string) {
+    setStates((current) => current.map((item) => item.envKey === envKey ? { ...item, saving: true, error: "" } : item));
+    const item = states.find((s) => s.envKey === envKey);
+    if (!item) return;
+    try {
+      const res = await fetch("/api/admin/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: envKey, value: item.value }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStates((current) => current.map((s) => s.envKey === envKey ? { ...s, saving: false, error: data.error ?? "Failed to save" } : s));
+      } else {
+        setStates((current) => current.map((s) => s.envKey === envKey ? { ...s, saving: false, saved: true, value: "", error: "" } : s));
+      }
+    } catch {
+      setStates((current) => current.map((s) => s.envKey === envKey ? { ...s, saving: false, error: "Network error" } : s));
+    }
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {states.map((item) => (
+        <div key={item.envKey} className="rounded-xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-foreground">{item.name}</div>
+            <Badge tone={item.saved ? "success" : "muted"}>{item.saved ? "Connected" : "Not Connected"}</Badge>
+          </div>
+          <div className="mt-4">
+            <TextInput
+              type="password"
+              value={item.value}
+              onChange={(event) => setStates((current) => current.map((s) => s.envKey === item.envKey ? { ...s, value: event.target.value } : s))}
+              placeholder={item.saved ? "Enter new key to update" : "Paste API key"}
+            />
+          </div>
+          {item.error ? <div className="mt-2 text-xs text-destructive">{item.error}</div> : null}
+          <div className="mt-4">
+            <ActionButton onClick={() => void save(item.envKey)} disabled={item.saving || !item.value.trim()}>
+              {item.saving ? "Saving..." : item.saved ? "Update" : "Connect"}
+            </ActionButton>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

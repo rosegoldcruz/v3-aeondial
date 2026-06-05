@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrgId } from "@/lib/auth/session";
-import { getDealDetail, updateDeal } from "@/lib/data/crm";
+import { deleteDeal, getDealDetail, updateDeal } from "@/lib/data/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -51,4 +51,12 @@ function number(value: unknown, fallback: number | null) {
 function dealStage(value: unknown) {
   const stage = text(value);
   return ["lead", "qualified", "proposal", "negotiation", "won", "lost"].includes(stage) ? stage as "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost" : undefined;
+}
+
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
+  const orgId = await getOrgId();
+  if (!orgId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const ok = await deleteDeal(orgId, params.id);
+  if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
+  return NextResponse.json({ ok: true });
 }

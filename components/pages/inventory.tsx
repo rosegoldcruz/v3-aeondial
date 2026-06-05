@@ -1,7 +1,7 @@
 import { Topbar } from "@/components/shell/topbar";
 import { Badge, Stat } from "@/components/ui/primitives";
 import { InventoryBidsClient } from "@/components/pages/workbench-clients";
-import { DataTable, PageSection, SectionCard, StatGrid, TableHeader, TableShell, Td, Th } from "@/components/pages/common";
+import { DataTable, GhostButton, PageSection, SectionCard, StatGrid, TableHeader, TableShell, Td, Th } from "@/components/pages/common";
 import { requireWorkspaceData } from "@/lib/data/page-data";
 import { money, stageTone } from "@/lib/ui/format";
 
@@ -62,7 +62,7 @@ export async function InventoryItemsView() {
                       <Td>{money(item.cost_cents)}</Td>
                       <Td>{money(item.list_cents)}</Td>
                       <Td>{(item.list_cents / Math.max(1, item.cost_cents)).toFixed(2)}x</Td>
-                      <Td>View</Td>
+                      <Td><GhostButton title="Coming soon" disabled>View</GhostButton></Td>
                     </tr>
                   ))}
                 </tbody>
@@ -103,7 +103,7 @@ export async function InventoryCatalogView() {
                       <Td>{item.description}</Td>
                       <Td><Badge tone={item.line === "framed" ? "accent" : "muted"}>{item.line}</Badge></Td>
                       <Td>{money(item.list_cents)}</Td>
-                      <Td>View</Td>
+                      <Td><GhostButton title="Coming soon" disabled>View</GhostButton></Td>
                     </tr>
                   ))}
                 </tbody>

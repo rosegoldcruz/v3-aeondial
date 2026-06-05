@@ -62,6 +62,12 @@ export function CRMLeadsClient({ leads, users }: { leads: NamedLead[]; users: Us
     setShowForm(false);
   }
 
+  async function deleteLead(id: string) {
+    if (!confirm("Delete this lead?")) return;
+    const res = await fetch(`/api/crm/leads/${id}`, { method: "DELETE" });
+    if (res.ok) setRows(rows.filter((r) => r.id !== id));
+  }
+
   return (
     <PageSection>
       <StatGrid>
@@ -130,9 +136,9 @@ export function CRMLeadsClient({ leads, users }: { leads: NamedLead[]; users: Us
                   <Td>{formatShortDate(lead.created_at)}</Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-2">
-                      <GhostButton className="h-8 w-8 px-0"><Eye size={14} /></GhostButton>
-                      <GhostButton className="h-8 w-8 px-0"><Pencil size={14} /></GhostButton>
-                      <GhostButton className="h-8 w-8 px-0"><Trash2 size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Eye size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Pencil size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" onClick={() => void deleteLead(lead.id)}><Trash2 size={14} /></GhostButton>
                     </div>
                   </Td>
                 </tr>
@@ -169,6 +175,12 @@ export function CRMContactsClient({ contacts }: { contacts: NamedContact[] }) {
     setRows([data as NamedContact, ...rows]);
     setForm({ name: "", company: "", email: "", phone: "" });
     setShowForm(false);
+  }
+
+  async function deleteContact(id: string) {
+    if (!confirm("Delete this contact?")) return;
+    const res = await fetch(`/api/crm/contacts/${id}`, { method: "DELETE" });
+    if (res.ok) setRows(rows.filter((r) => r.id !== id));
   }
 
   return (
@@ -230,9 +242,9 @@ export function CRMContactsClient({ contacts }: { contacts: NamedContact[] }) {
                   <Td>{formatDate(contact.updated_at)}</Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-2">
-                      <GhostButton className="h-8 w-8 px-0"><Eye size={14} /></GhostButton>
-                      <GhostButton className="h-8 w-8 px-0"><Pencil size={14} /></GhostButton>
-                      <GhostButton className="h-8 w-8 px-0"><Trash2 size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Eye size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Pencil size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" onClick={() => void deleteContact(contact.id)}><Trash2 size={14} /></GhostButton>
                     </div>
                   </Td>
                 </tr>
@@ -274,6 +286,22 @@ export function CRMDealsClient({ deals }: { deals: NamedDeal[] }) {
     setRows([data as NamedDeal, ...rows]);
     setShowForm(false);
     setForm({ title: "", value_cents: 250000, stage: "lead" });
+  }
+
+  async function deleteDeal(id: string) {
+    if (!confirm("Delete this deal?")) return;
+    const res = await fetch(`/api/crm/deals/${id}`, { method: "DELETE" });
+    if (res.ok) setRows(rows.filter((r) => r.id !== id));
+  }
+
+  async function updateDealStage(id: string, newStage: string) {
+    const res = await fetch(`/api/crm/deals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage: newStage }),
+    });
+    const data = await res.json();
+    if (res.ok) setRows(rows.map((r) => r.id === id ? { ...r, ...data } : r));
   }
 
   return (
@@ -327,15 +355,23 @@ export function CRMDealsClient({ deals }: { deals: NamedDeal[] }) {
                 <tr key={deal.id} className="border-t border-border">
                   <Td className="font-medium">{deal.title}</Td>
                   <Td>{deal.contact_name ?? "Unassigned"}</Td>
-                  <Td><ToneBadge tone={stageTone(deal.stage)}>{deal.stage}</ToneBadge></Td>
+                  <Td>
+                    <SelectInput
+                      value={deal.stage}
+                      onChange={(event) => void updateDealStage(deal.id, event.target.value)}
+                      className="h-7 text-xs"
+                    >
+                      {dealStages.filter((s) => s !== "all").map((s) => <option key={s} value={s}>{s}</option>)}
+                    </SelectInput>
+                  </Td>
                   <Td className="text-accent">{money(deal.value_cents)}</Td>
                   <Td>{deal.owner_name ?? "Open queue"}</Td>
                   <Td>{formatDate(deal.expected_close)}</Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-2">
-                      <GhostButton className="h-8 w-8 px-0"><Eye size={14} /></GhostButton>
-                      <GhostButton className="h-8 w-8 px-0"><Pencil size={14} /></GhostButton>
-                      <GhostButton className="h-8 w-8 px-0"><Trash2 size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Eye size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Pencil size={14} /></GhostButton>
+                      <GhostButton className="h-8 w-8 px-0" onClick={() => void deleteDeal(deal.id)}><Trash2 size={14} /></GhostButton>
                     </div>
                   </Td>
                 </tr>

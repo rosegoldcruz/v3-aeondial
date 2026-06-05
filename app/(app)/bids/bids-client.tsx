@@ -9,10 +9,55 @@ export function BidsClient({ bids }: { bids: Bid[] }) {
   const [line, setLine] = useState<CabinetLine>("framed");
   const [margin, setMargin] = useState(0.23);
   const [list, setList] = useState("");
+  const [title, setTitle] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState("");
+  const [savedBids, setSavedBids] = useState<Bid[]>(bids);
 
   const listC = toCents(parseFloat(list || "0"));
   const factor = bidFactor(line, margin);
   const out = bidCents(line, listC, margin);
+
+  async function saveBid() {
+    setSaveError("");
+    setSaveSuccess("");
+    if (!title.trim()) {
+      setSaveError("Please enter a bid title.");
+      return;
+    }
+    if (!list || parseFloat(list) <= 0) {
+      setSaveError("Please enter a list price greater than 0.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/bids", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          line,
+          price_margin: margin,
+          lines: [{ description: "Calculator line", qty: 1, list_cents: listC }],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveError(data.error ?? "Failed to save bid");
+      } else {
+        setSaveSuccess("Bid saved!");
+        setSavedBids([data as Bid, ...savedBids]);
+        setTitle("");
+        setList("");
+        setTimeout(() => setSaveSuccess(""), 3000);
+      }
+    } catch {
+      setSaveError("Network error — unable to save bid");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="p-5 md:p-8 space-y-6">
@@ -37,18 +82,41 @@ export function BidsClient({ bids }: { bids: Bid[] }) {
             <Badge tone="accent">factor {factor.toFixed(5)}</Badge>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-3 mb-4">
           <Stat label="List" value={fmtUSD(listC)} />
           <Stat label="Factor" value={factor.toFixed(4)} tone="up" />
           <Stat label="Bid Price" value={fmtUSD(out)} tone="up" />
+        </div>
+        <div className="border-t border-border pt-4">
+          <label className="block mb-3">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Bid Title</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Smith Kitchen Remodel"
+              className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2 text-foreground text-sm outline-none focus:border-accent"
+            />
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={saveBid}
+              disabled={saving}
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-accent/40 bg-accent px-4 text-sm font-medium text-accent-foreground transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Bid"}
+            </button>
+            {saveError ? <span className="text-sm text-destructive">{saveError}</span> : null}
+            {saveSuccess ? <span className="text-sm text-success">{saveSuccess}</span> : null}
+          </div>
         </div>
       </Card>
 
       <div>
         <SectionTitle>Saved Bids</SectionTitle>
-        {bids.length === 0 ? (
+        {savedBids.length === 0 ? (
           <div className="text-sm text-muted-foreground py-6 text-center">No bids saved yet.</div>
-        ) : bids.map((b) => (
+        ) : savedBids.map((b) => (
           <div key={b.id} className="bg-card border border-border rounded-xl p-4 mb-2 flex items-center justify-between">
             <div>
               <div className="text-sm text-foreground">{b.title}</div>

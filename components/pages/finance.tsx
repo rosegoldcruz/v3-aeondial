@@ -42,7 +42,7 @@ export async function FinanceDashboardView() {
             </div>
           </SectionCard>
           <SectionCard title="Monthly Spend Trend">
-            <LineMetricChart data={monthlyTrend.map((row) => ({ label: row.label, spend: row.value / 100 }))} lines={[{ key: "spend", color: "oklch(0.7 0.18 220)", name: "Spend" }]} />
+            <LineMetricChart data={monthlyTrend.map((row) => ({ label: row.label, spend: row.value / 100 }))} lines={[{ key: "spend", color: "oklch(var(--chart-1) / 1)", name: "Spend" }]} />
           </SectionCard>
         </div>
         <SectionCard title="Recent Transactions">
@@ -98,7 +98,7 @@ export async function FinanceReportsView() {
           <Stat label="Entities" value={String(data.entities.length)} />
         </StatGrid>
         <SectionCard title="Burn Trend">
-          <LineMetricChart data={monthly.map((row) => ({ label: row.label, burn: row.value / 100 }))} lines={[{ key: "burn", color: "oklch(0.65 0.22 25)", name: "Burn" }]} />
+          <LineMetricChart data={monthly.map((row) => ({ label: row.label, burn: row.value / 100 }))} lines={[{ key: "burn", color: "oklch(var(--destructive) / 1)", name: "Burn" }]} />
         </SectionCard>
         <DataTable>
           <TableShell>

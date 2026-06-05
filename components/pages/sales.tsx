@@ -125,7 +125,7 @@ export async function SalesForecastsView() {
           <Stat label="Gap to Quota" value={money(Math.max(0, quota - projected))} />
         </StatGrid>
         <SectionCard title="Quota vs Attainment by Rep">
-          <BarMetricChart data={reps.map((rep) => ({ label: rep.name.split(" ")[0], quota: rep.quota / 100, closed: rep.closed / 100 }))} bars={[{ key: "quota", color: "oklch(0.7 0.18 220)", name: "Quota" }, { key: "closed", color: "oklch(0.7 0.18 145)", name: "Closed" }]} />
+          <BarMetricChart data={reps.map((rep) => ({ label: rep.name.split(" ")[0], quota: rep.quota / 100, closed: rep.closed / 100 }))} bars={[{ key: "quota", color: "oklch(var(--chart-1) / 1)", name: "Quota" }, { key: "closed", color: "oklch(var(--chart-2) / 1)", name: "Closed" }]} />
         </SectionCard>
         <DataTable>
           <TableShell>
@@ -177,12 +177,12 @@ export async function SalesReportsView() {
         <GridHalves
           left={
             <SectionCard title="Revenue Trend">
-              <LineMetricChart data={monthly.map((item) => ({ label: item.label, revenue: item.revenue / 100 }))} lines={[{ key: "revenue", color: "oklch(0.7 0.18 220)", name: "Revenue" }]} />
+              <LineMetricChart data={monthly.map((item) => ({ label: item.label, revenue: item.revenue / 100 }))} lines={[{ key: "revenue", color: "oklch(var(--chart-1) / 1)", name: "Revenue" }]} />
             </SectionCard>
           }
           right={
             <SectionCard title="Win / Loss Ratio">
-              <BarMetricChart data={monthly.map((item) => ({ label: item.label, won: item.won, lost: item.lost }))} bars={[{ key: "won", color: "oklch(0.7 0.18 145)", name: "Won" }, { key: "lost", color: "oklch(0.65 0.22 25)", name: "Lost" }]} />
+              <BarMetricChart data={monthly.map((item) => ({ label: item.label, won: item.won, lost: item.lost }))} bars={[{ key: "won", color: "oklch(var(--chart-2) / 1)", name: "Won" }, { key: "lost", color: "oklch(var(--destructive) / 1)", name: "Lost" }]} />
             </SectionCard>
           }
         />

@@ -3,6 +3,7 @@ import { Badge, Row, Stat } from "@/components/ui/primitives";
 import { BarMetricChart } from "@/components/pages/charts";
 import { DataTable, PageSection, SectionCard, StatGrid, TableHeader, TableShell, Td, Th } from "@/components/pages/common";
 import { DialerComplianceClient } from "@/components/pages/workbench-clients";
+import { RecentCallsList } from "@/components/pages/dialer-client";
 import { requireWorkspaceData } from "@/lib/data/page-data";
 import { formatDateTime, formatShortDate, money, stageTone, timeAgo } from "@/lib/ui/format";
 
@@ -24,8 +25,8 @@ export async function DialerDashboardView() {
           <SectionCard title="Agent Status Board">
             <div className="space-y-3">
               {agents.map((agent) => (
-                <div key={agent.name} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 px-4 py-3">
-                  <div>
+                <div key={agent.name} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-3">
+                  <div className="min-w-0">
                     <div className="text-sm font-medium text-foreground">{agent.name}</div>
                     <div className="text-xs text-muted-foreground">{agent.duration}</div>
                   </div>
@@ -35,10 +36,13 @@ export async function DialerDashboardView() {
             </div>
           </SectionCard>
           <SectionCard title="Call Activity by Hour">
-            <BarMetricChart data={Array.from({ length: 8 }, (_, index) => ({ label: `${9 + index}:00`, calls: 3 + (index % 4) * 2 }))} bars={[{ key: "calls", color: "oklch(0.7 0.18 220)", name: "Calls" }]} />
+            <BarMetricChart data={Array.from({ length: 8 }, (_, index) => ({ label: `${9 + index}:00`, calls: 3 + (index % 4) * 2 }))} bars={[{ key: "calls", color: "oklch(var(--chart-1) / 1)", name: "Calls" }]} />
           </SectionCard>
         </div>
-        <SectionCard title="Recent Call Log">
+        <SectionCard title="Recent Call Log (Live)">
+          <RecentCallsList />
+        </SectionCard>
+        <SectionCard title="Activity Log (Legacy)">
           <DataTable>
             <TableShell>
               <table className="min-w-full">
@@ -127,7 +131,7 @@ export async function DialerLiveView() {
     <>
       <Topbar title="Live Monitor" right={null} />
       <PageSection>
-        <div className="rounded-xl border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+        <div className="rounded-xl border border-border bg-card px-4 py-4 text-sm text-muted-foreground sm:px-5">
           {cards.filter((card) => card.status === "Ready").length} agents ready · {cards.filter((card) => card.status === "In Call").length} in call · {cards.filter((card) => card.status === "Wrap").length} in wrap
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -202,7 +206,7 @@ export async function DialerRecordingsView() {
           </DataTable>
           <div className="mt-4 rounded-xl border border-border bg-secondary/30 p-4">
             <div className="text-sm font-medium text-foreground">Audio Player</div>
-            <div className="mt-2 h-10 rounded-lg bg-card px-4 py-2 text-sm text-muted-foreground">Select a recording row to play the call.</div>
+            <div className="mt-2 min-h-10 rounded-lg bg-card px-4 py-2 text-sm text-muted-foreground">Select a recording row to play the call.</div>
           </div>
         </SectionCard>
       </PageSection>
@@ -224,7 +228,7 @@ export async function DialerReportsView() {
           <Stat label="Campaigns" value={String(data.campaigns.filter((campaign) => campaign.type === "dialer").length)} />
         </StatGrid>
         <SectionCard title="Hourly Performance">
-          <BarMetricChart data={Array.from({ length: 6 }, (_, index) => ({ label: `${10 + index}:00`, connects: 5 + index, talk: 12 + index * 2 }))} bars={[{ key: "connects", color: "oklch(0.7 0.18 145)", name: "Connects" }, { key: "talk", color: "oklch(0.7 0.18 220)", name: "Talk Time" }]} />
+          <BarMetricChart data={Array.from({ length: 6 }, (_, index) => ({ label: `${10 + index}:00`, connects: 5 + index, talk: 12 + index * 2 }))} bars={[{ key: "connects", color: "oklch(var(--chart-2) / 1)", name: "Connects" }, { key: "talk", color: "oklch(var(--chart-1) / 1)", name: "Talk Time" }]} />
         </SectionCard>
       </PageSection>
     </>

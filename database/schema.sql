@@ -322,6 +322,19 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 );
 
 -- ============================================================
+-- ORG SETTINGS  (key/value store for integration credentials)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS org_settings (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id     UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  key        TEXT NOT NULL,
+  value      TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (org_id, key)
+);
+CREATE INDEX IF NOT EXISTS idx_org_settings_org ON org_settings(org_id);
+
+-- ============================================================
 -- OPS, INVENTORY SUPPORT, COMPLIANCE, ADMIN AUDIT
 -- ============================================================
 CREATE TABLE IF NOT EXISTS tasks (
@@ -409,6 +422,39 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_audit_log_org_created ON audit_log(org_id, created_at DESC);
 
 -- ============================================================
+-- DIALER MODULE (calls + recordings)
+-- ============================================================
+DO $$ BEGIN
+  CREATE TYPE call_direction AS ENUM ('outbound','inbound');
+  CREATE TYPE call_status AS ENUM ('initiated','ringing','answered','completed','failed','busy','no_answer','cancelled');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS calls (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
+  lead_id         UUID REFERENCES leads(id) ON DELETE SET NULL,
+  contact_id      UUID REFERENCES contacts(id) ON DELETE SET NULL,
+  direction       call_direction NOT NULL DEFAULT 'outbound',
+  from_number     TEXT,
+  to_number       TEXT NOT NULL,
+  status          call_status NOT NULL DEFAULT 'initiated',
+  started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  answered_at     TIMESTAMPTZ,
+  ended_at        TIMESTAMPTZ,
+  duration_s      INT,
+  disposition     TEXT,
+  recording_url   TEXT,
+  ari_channel_id  TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_calls_org ON calls(org_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_calls_lead ON calls(lead_id);
+CREATE INDEX IF NOT EXISTS idx_calls_contact ON calls(contact_id);
+CREATE INDEX IF NOT EXISTS idx_calls_ari ON calls(ari_channel_id);
+
+-- ============================================================
 -- updated_at trigger
 -- ============================================================
 CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS trigger AS $$
@@ -430,5 +476,7 @@ DO $$ BEGIN
   CREATE TRIGGER trg_sops_touch BEFORE UPDATE ON sops
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
   CREATE TRIGGER trg_inventory_items_touch BEFORE UPDATE ON inventory_items
+    FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+  CREATE TRIGGER trg_calls_touch BEFORE UPDATE ON calls
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;

@@ -1,8 +1,10 @@
 import { Topbar } from "@/components/shell/topbar";
 import { Badge, Stat } from "@/components/ui/primitives";
-import { AdminUsersClient } from "@/components/pages/workbench-clients";
+import { AdminUsersClient, AdminIntegrationsClient } from "@/components/pages/workbench-clients";
 import { PageSection, SectionCard, StatGrid, TextInput, SelectInput, ActionButton, GhostButton } from "@/components/pages/common";
 import { requireWorkspaceData } from "@/lib/data/page-data";
+import { query } from "@/lib/db/pool";
+import { getOrgId } from "@/lib/auth/session";
 
 export async function AdminUsersView() {
   const data = await requireWorkspaceData();
@@ -40,30 +42,37 @@ export async function AdminOrgView() {
 }
 
 export async function AdminIntegrationsView() {
+  const orgId = await getOrgId();
+  let savedKeys: Record<string, boolean> = {
+    DEEPSEEK_API_KEY: Boolean(process.env.DEEPSEEK_API_KEY),
+    SENDGRID_API_KEY: Boolean(process.env.SENDGRID_API_KEY),
+    TELNYX_API_KEY: Boolean(process.env.TELNYX_API_KEY),
+    GOOGLE_DRIVE_CLIENT_ID: Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID),
+    TWILIO_ACCOUNT_SID: Boolean(process.env.TWILIO_ACCOUNT_SID),
+  };
+  if (orgId) {
+    const rows = await query<{ key: string; value: string }>(
+      "SELECT key, value FROM org_settings WHERE org_id=$1",
+      [orgId]
+    );
+    for (const row of rows) {
+      if (row.key in savedKeys) {
+        savedKeys[row.key] = Boolean(row.value);
+      }
+    }
+  }
   const integrations = [
-    ["DeepSeek API", Boolean(process.env.DEEPSEEK_API_KEY)],
-    ["SendGrid", Boolean(process.env.SENDGRID_API_KEY)],
-    ["Telnyx", Boolean(process.env.TELNYX_API_KEY)],
-    ["Google Drive", Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID)],
-    ["Twilio", Boolean(process.env.TWILIO_ACCOUNT_SID)],
-    ["NocoDB", true],
+    { name: "DeepSeek API", envKey: "DEEPSEEK_API_KEY", connected: savedKeys["DEEPSEEK_API_KEY"] },
+    { name: "SendGrid", envKey: "SENDGRID_API_KEY", connected: savedKeys["SENDGRID_API_KEY"] },
+    { name: "Telnyx", envKey: "TELNYX_API_KEY", connected: savedKeys["TELNYX_API_KEY"] },
+    { name: "Google Drive", envKey: "GOOGLE_DRIVE_CLIENT_ID", connected: savedKeys["GOOGLE_DRIVE_CLIENT_ID"] },
+    { name: "Twilio", envKey: "TWILIO_ACCOUNT_SID", connected: savedKeys["TWILIO_ACCOUNT_SID"] },
   ] as const;
   return (
     <>
       <Topbar title="Integrations" right={null} />
       <PageSection>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {integrations.map(([name, connected]) => (
-            <div key={name} className="rounded-xl border border-border bg-card p-5">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-foreground">{name}</div>
-                <Badge tone={connected ? "success" : "muted"}>{connected ? "Connected" : "Not Connected"}</Badge>
-              </div>
-              <div className="mt-4"><TextInput type="password" defaultValue={connected ? "••••••••••••" : ""} placeholder="API key" /></div>
-              <div className="mt-4"><ActionButton>{connected ? "Save" : "Connect"}</ActionButton></div>
-            </div>
-          ))}
-        </div>
+        <AdminIntegrationsClient integrations={integrations} />
       </PageSection>
     </>
   );

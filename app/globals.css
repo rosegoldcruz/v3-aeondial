@@ -2,16 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
-
-html, body {
-  background: oklch(0.08 0.005 260);
-  color: oklch(0.95 0 0);
-  font-family: "Inter", system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
+/* ── Light mode (default) ─────────────────────────────────────────── */
+:root {
+  --background: 0.985 0.002 260;
+  --foreground: 0.145 0.005 260;
+  --card: 1 0 0;
+  --card-foreground: 0.145 0.005 260;
+  --sidebar: 0.97 0.003 260;
+  --sidebar-border: 0.88 0.005 260;
+  --sidebar-foreground: 0.145 0.005 260;
+  --sidebar-accent: 0.93 0.005 260;
+  --border: 0.88 0.005 260;
+  --input: 0.88 0.005 260;
+  --ring: 0.50 0.18 220;
+  --primary: 0.50 0.18 220;
+  --primary-foreground: 0.985 0 0;
+  --secondary: 0.95 0.005 260;
+  --secondary-foreground: 0.145 0.005 260;
+  --muted: 0.95 0.005 260;
+  --muted-foreground: 0.45 0.005 260;
+  --accent: 0.50 0.18 220;
+  --accent-foreground: 0.985 0 0;
+  --success: 0.50 0.18 145;
+  --success-foreground: 0.985 0 0;
+  --warning: 0.60 0.17 80;
+  --warning-foreground: 0.145 0.005 260;
+  --destructive: 0.50 0.22 25;
+  --destructive-foreground: 0.985 0 0;
+  --chart-1: 0.50 0.18 220;
+  --chart-2: 0.50 0.18 145;
+  --chart-3: 0.55 0.15 55;
+  --chart-4: 0.50 0.18 300;
+  --chart-5: 0.45 0.20 15;
+  --chart-tick: 0.45 0.005 260;
+  --chart-grid: 0.88 0.005 260;
+  --chart-tooltip-bg: 0.97 0.003 260;
+  --chart-tooltip-border: 0.88 0.005 260;
+  --scrollbar-track: 0.95 0.005 260;
+  --scrollbar-thumb: 0.82 0.005 260;
+  --scrollbar-thumb-hover: 0.72 0.005 260;
+  color-scheme: light;
 }
 
-/* Animate-in utility used on every card and row */
+/* ── Dark mode ────────────────────────────────────────────────────── */
+.dark {
+  --background: 0.08 0.005 260;
+  --foreground: 0.95 0 0;
+  --card: 0.11 0.005 260;
+  --card-foreground: 0.95 0 0;
+  --sidebar: 0.09 0.005 260;
+  --sidebar-border: 0.18 0.005 260;
+  --sidebar-foreground: 0.95 0 0;
+  --sidebar-accent: 0.14 0.005 260;
+  --border: 0.18 0.005 260;
+  --input: 0.18 0.005 260;
+  --ring: 0.70 0.18 220;
+  --primary: 0.70 0.18 220;
+  --primary-foreground: 0.08 0.005 260;
+  --secondary: 0.16 0.005 260;
+  --secondary-foreground: 0.95 0 0;
+  --muted: 0.16 0.005 260;
+  --muted-foreground: 0.65 0 0;
+  --accent: 0.70 0.18 220;
+  --accent-foreground: 0.08 0.005 260;
+  --success: 0.70 0.18 145;
+  --success-foreground: 0.08 0 0;
+  --warning: 0.80 0.15 80;
+  --warning-foreground: 0.08 0 0;
+  --destructive: 0.65 0.22 25;
+  --destructive-foreground: 0.95 0 0;
+  --chart-1: 0.70 0.18 220;
+  --chart-2: 0.70 0.18 145;
+  --chart-3: 0.75 0.15 55;
+  --chart-4: 0.70 0.18 300;
+  --chart-5: 0.65 0.20 15;
+  --chart-tick: 0.65 0 0;
+  --chart-grid: 0.22 0.005 260;
+  --chart-tooltip-bg: 0.12 0.005 260;
+  --chart-tooltip-border: 0.22 0.005 260;
+  --scrollbar-track: 0.09 0.005 260;
+  --scrollbar-thumb: 0.22 0.005 260;
+  --scrollbar-thumb-hover: 0.30 0.005 260;
+  color-scheme: dark;
+}
+
+/* ── Base styles ──────────────────────────────────────────────────── */
+@layer base {
+  html, body {
+    background: oklch(var(--background));
+    color: oklch(var(--foreground));
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
+
+/* ── Animate-in utility ──────────────────────────────────────────── */
 .animate-in {
   animation: slideInFromBottom 0.5s ease forwards;
   opacity: 0;
@@ -37,8 +124,8 @@ html, body {
   to   { opacity: 1; }
 }
 
-/* Scrollbar */
+/* ── Scrollbar ────────────────────────────────────────────────────── */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: oklch(0.09 0.005 260); }
-::-webkit-scrollbar-thumb { background: oklch(0.22 0.005 260); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: oklch(0.30 0.005 260); }
+::-webkit-scrollbar-track { background: oklch(var(--scrollbar-track)); }
+::-webkit-scrollbar-thumb { background: oklch(var(--scrollbar-thumb)); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(var(--scrollbar-thumb-hover)); }

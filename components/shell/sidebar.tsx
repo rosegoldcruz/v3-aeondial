@@ -8,8 +8,9 @@ import {
   Phone, Megaphone, BrainCircuit, Bot, Wallet, ClipboardList,
   Package, FolderOpen, ShieldCheck, UserCog, Zap, Mail,
   MessageSquare, Calendar, Target, FileText, Clock, BookOpen,
-  Boxes, HardDrive, BarChart3, Bell, Search
+  Boxes, HardDrive, BarChart3, Bell, Search, Menu, X
 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const NAV = [
   {
@@ -117,14 +118,34 @@ const NAV = [
 export function Sidebar() {
   const path = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
+    <>
+    <button
+      type="button"
+      onClick={() => setMobileOpen(true)}
+      className="fixed left-3 top-3 z-50 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-lg md:hidden"
+      aria-label="Open navigation"
+    >
+      <Menu size={20} />
+    </button>
+    {mobileOpen && (
+      <button
+        type="button"
+        onClick={() => setMobileOpen(false)}
+        className="fixed inset-0 z-40 bg-background/70 backdrop-blur-sm md:hidden"
+        aria-label="Close navigation overlay"
+      />
+    )}
     <aside
-      className="fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-out flex flex-col"
-      style={{ width: collapsed ? "64px" : "260px" }}
+      className={`fixed left-0 top-0 z-50 h-dvh bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-out flex flex-col md:z-40 ${
+        mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full md:translate-x-0"
+      }`}
+      style={{ width: collapsed && !mobileOpen ? "64px" : "min(82vw, 260px)" }}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center px-4 border-b border-sidebar-border shrink-0">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-accent/10 border border-accent/30 flex items-center justify-center shrink-0">
             <span className="text-lg">🦊</span>
@@ -136,6 +157,14 @@ export function Sidebar() {
             </div>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden"
+          aria-label="Close navigation"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* Nav */}
@@ -154,6 +183,7 @@ export function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setMobileOpen(false)}
                   className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
                     active
                       ? "bg-sidebar-accent text-sidebar-foreground"
@@ -183,14 +213,16 @@ export function Sidebar() {
       </nav>
 
       {/* Collapse toggle */}
-      <div className="p-3 border-t border-sidebar-border shrink-0">
+      <div className="p-3 border-t border-sidebar-border shrink-0 space-y-1">
+        <ThemeToggle collapsed={collapsed} />
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-200"
+          className="hidden w-full items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-200 md:flex"
         >
           {collapsed ? <ChevronRight size={16} /> : <><ChevronLeft size={16} /><span>Collapse</span></>}
         </button>
       </div>
     </aside>
+    </>
   );
 }
