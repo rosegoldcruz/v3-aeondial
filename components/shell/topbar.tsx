@@ -3,7 +3,7 @@ import { Bell, Search } from "lucide-react";
 
 export function Topbar({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
-    <header className="min-h-16 border-b border-border bg-background/90 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 pl-16 md:px-6 md:pl-6">
+    <header className="h-16 border-b border-border bg-background/90 backdrop-blur-sm sticky top-0 z-30 flex items-center justify-between gap-2 px-4 pl-16 md:px-6 md:pl-6">
       <div className="flex min-w-0 items-center gap-6">
         <h1 className="truncate text-lg font-semibold text-foreground sm:text-xl">{title}</h1>
       </div>

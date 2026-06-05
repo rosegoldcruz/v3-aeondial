@@ -88,13 +88,14 @@
 
 /* ── Base styles ──────────────────────────────────────────────────── */
 @layer base {
-  html, body {
+  html {
+    overflow-x: hidden;
+  }
+  body {
     background: oklch(var(--background));
     color: oklch(var(--foreground));
     font-family: "Inter", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
-    max-width: 100%;
-    overflow-x: hidden;
   }
 }
 
