@@ -1,9 +1,10 @@
 import { Client } from "pg";
 
-const POSTGRES_URL = "postgresql://aeondial:REDACTED@127.0.0.1:5432/aeondial";
-const ARI_URL = "http://127.0.0.1:8088";
-const ARI_USER = "aeon";
-const ARI_PASS = "aeon_ari_secret_changeme";
+const POSTGRES_URL = process.env.POSTGRES_URL || "postgresql://aeondial@127.0.0.1:5432/aeondial";
+if (!process.env.POSTGRES_URL) console.warn("WARNING: POSTGRES_URL not set — using local default");
+const ARI_URL = process.env.ARI_URL || "http://127.0.0.1:8088";
+const ARI_USER = process.env.ARI_USER || "aeon";
+const ARI_PASS = process.env.ARI_PASS || "aeon_ari_secret_changeme";
 const auth = Buffer.from(`${ARI_USER}:${ARI_PASS}`).toString("base64");
 
 const client = new Client({ connectionString: POSTGRES_URL });
