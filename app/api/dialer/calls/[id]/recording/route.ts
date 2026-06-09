@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrgId } from "@/lib/auth/session";
-import { getCall } from "@/lib/telephony";
+import { getCallByProviderId } from "@/lib/telephony";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +14,8 @@ export async function GET(
   const orgId = await getOrgId();
   if (!orgId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const call = await getCall(params.id, orgId);
-  if (!call) return NextResponse.json({ error: "call not found" }, { status: 404 });
+  const call = await getCallByProviderId(params.id);
+  if (!call || call.org_id !== orgId) return NextResponse.json({ error: "call not found" }, { status: 404 });
   if (!call.recording_url) {
     return NextResponse.json({ error: "no recording available" }, { status: 404 });
   }

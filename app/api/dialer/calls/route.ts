@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrgId, getCurrentUser } from "@/lib/auth/session";
-import { originateCall, listCalls, initCallEventLoop } from "@/lib/telephony";
+import { originateCall, listCalls, initCallEventLoop, createCallRecord } from "@/lib/telephony";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   await initCallEventLoop();
 
   try {
-    const call = await originateCall({
+    const result = await originateCall({
       orgId,
       userId: user?.id,
       leadId: typeof body.leadId === "string" ? body.leadId : undefined,
@@ -33,6 +33,21 @@ export async function POST(req: NextRequest) {
       fromNumber: typeof body.fromNumber === "string" ? body.fromNumber : undefined,
       record: body.record === true,
     });
+
+    // Persist call record
+    const call = await createCallRecord({
+      org_id: orgId,
+      user_id: user?.id,
+      lead_id: typeof body.leadId === "string" ? body.leadId : undefined,
+      contact_id: typeof body.contactId === "string" ? body.contactId : undefined,
+      provider: result.provider,
+      provider_call_id: result.callSid,
+      direction: "outbound",
+      from_number: result.from,
+      to_number: result.to,
+      status: result.status,
+    });
+
     return NextResponse.json(call, { status: 201 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "originate failed";

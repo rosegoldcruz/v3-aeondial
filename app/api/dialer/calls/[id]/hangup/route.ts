@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrgId } from "@/lib/auth/session";
-import { hangupCall } from "@/lib/telephony";
+import { hangupCall, getCallByProviderId } from "@/lib/telephony";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,9 @@ export async function POST(
   const orgId = await getOrgId();
   if (!orgId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const call = await hangupCall(params.id, orgId);
-  if (!call) return NextResponse.json({ error: "call not found" }, { status: 404 });
-  return NextResponse.json(call);
+  const call = await getCallByProviderId(params.id);
+  if (!call || call.org_id !== orgId) return NextResponse.json({ error: "call not found" }, { status: 404 });
+
+  await hangupCall(call.provider as "twilio" | "telnyx", params.id);
+  return NextResponse.json({ success: true });
 }
