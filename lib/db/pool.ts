@@ -16,8 +16,9 @@ function getPool(): Pool {
   const p = new Pool({
     connectionString: url,
     max: 10,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    min: 2,                    // keep 2 connections warm so first query is never cold
+    idleTimeoutMillis: 60_000, // hold idle connections longer to avoid churn
+    connectionTimeoutMillis: 5_000,
   });
   globalForPg.aeonPool = p;
   return p;

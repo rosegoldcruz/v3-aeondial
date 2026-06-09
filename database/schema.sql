@@ -480,3 +480,315 @@ DO $$ BEGIN
   CREATE TRIGGER trg_calls_touch BEFORE UPDATE ON calls
     FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------- automation engine (n8n integration) ----------
+CREATE TABLE IF NOT EXISTS automation_workflows (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  n8n_workflow_id TEXT,
+  name          TEXT NOT NULL,
+  description   TEXT,
+  trigger_event TEXT,
+  active        BOOLEAN NOT NULL DEFAULT false,
+  webhook_path  TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_automation_workflows_org ON automation_workflows(org_id);
+
+CREATE TABLE IF NOT EXISTS automation_runs (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  workflow_id     UUID REFERENCES automation_workflows(id) ON DELETE SET NULL,
+  n8n_execution_id TEXT,
+  status          TEXT NOT NULL DEFAULT 'pending',
+  trigger_event   TEXT,
+  payload         JSONB,
+  result          JSONB,
+  started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  finished_at     TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_automation_runs_org ON automation_runs(org_id);
+CREATE INDEX IF NOT EXISTS idx_automation_runs_workflow ON automation_runs(workflow_id);
+
+-- ============================================================
+-- AUTONOMOUS DIGITAL AGENCY MODULE
+-- Discovery → Scoring → Preview → Outreach → Pipeline → Fulfill
+-- ============================================================
+
+DO $$ BEGIN
+  CREATE TYPE digital_class AS ENUM ('INVISIBLE','WEAK','AVERAGE','STRONG','ADVANCED');
+  CREATE TYPE opportunity_type AS ENUM ('NO_WEBSITE','BAD_WEBSITE','GOOD_WEBSITE_NO_CRM','HIGH_REVIEW_LOW_CONVERSION','HIGH_VALUE_TARGET','ALREADY_ADVANCED');
+  CREATE TYPE agency_pipeline_stage AS ENUM ('DISCOVERED','SCORED','PREVIEW_GENERATED','EMAIL_SENT','OPENED','CLICKED','REPLIED','CALL_BOOKED','PROPOSAL_SENT','WON','LOST','CLIENT','RETAINER');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------- discovered businesses ----------
+CREATE TABLE IF NOT EXISTS agency_businesses (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  business_name   TEXT NOT NULL,
+  category        TEXT,
+  address         TEXT,
+  city            TEXT,
+  state           TEXT,
+  country         TEXT DEFAULT 'US',
+  phone           TEXT,
+  email           TEXT,
+  website         TEXT,
+  domain          TEXT,
+  google_place_id TEXT,
+  google_maps_url TEXT,
+  rating          NUMERIC(2,1),
+  review_count    INTEGER DEFAULT 0,
+  hours           JSONB,
+  photos          JSONB,
+  services        TEXT[],
+  source          TEXT,
+  source_tier     TEXT,
+  raw_payload     JSONB,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_businesses_org ON agency_businesses(org_id);
+CREATE INDEX IF NOT EXISTS idx_agency_businesses_domain ON agency_businesses(domain);
+CREATE INDEX IF NOT EXISTS idx_agency_businesses_city ON agency_businesses(city, state);
+CREATE INDEX IF NOT EXISTS idx_agency_businesses_category ON agency_businesses(category);
+
+-- ---------- business contacts ----------
+CREATE TABLE IF NOT EXISTS agency_business_contacts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  business_id     UUID NOT NULL REFERENCES agency_businesses(id) ON DELETE CASCADE,
+  name            TEXT,
+  title           TEXT,
+  seniority       TEXT,
+  email           TEXT,
+  email_confidence NUMERIC(5,2),
+  validation_status TEXT,
+  phone           TEXT,
+  linkedin_url    TEXT,
+  is_primary      BOOLEAN DEFAULT false,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_contacts_business ON agency_business_contacts(business_id);
+
+-- ---------- digital maturity scores ----------
+CREATE TABLE IF NOT EXISTS agency_scores (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  business_id     UUID NOT NULL REFERENCES agency_businesses(id) ON DELETE CASCADE,
+  total_score     INTEGER NOT NULL DEFAULT 0,
+  classification  digital_class NOT NULL DEFAULT 'INVISIBLE',
+  website_exists  INTEGER DEFAULT 0,
+  mobile_friendly INTEGER DEFAULT 0,
+  page_speed      INTEGER DEFAULT 0,
+  clear_cta       INTEGER DEFAULT 0,
+  contact_form    INTEGER DEFAULT 0,
+  reviews_onsite  INTEGER DEFAULT 0,
+  service_pages   INTEGER DEFAULT 0,
+  tracking_pixel  INTEGER DEFAULT 0,
+  crm_indicators  INTEGER DEFAULT 0,
+  email_capture   INTEGER DEFAULT 0,
+  modern_design   INTEGER DEFAULT 0,
+  analytics       INTEGER DEFAULT 0,
+  reasoning       TEXT,
+  missing_infra   TEXT[],
+  scored_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_scores_business ON agency_scores(business_id);
+CREATE INDEX IF NOT EXISTS idx_agency_scores_class ON agency_scores(classification);
+
+-- ---------- website audits (AI) ----------
+CREATE TABLE IF NOT EXISTS agency_audits (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id              UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  business_id         UUID NOT NULL REFERENCES agency_businesses(id) ON DELETE CASCADE,
+  executive_summary   TEXT,
+  design_quality      INTEGER,
+  conversion_assessment TEXT,
+  strongest_asset     TEXT,
+  revenue_opportunities JSONB,
+  infrastructure_gaps TEXT[],
+  recommended_offer   TEXT,
+  outreach_angle      TEXT,
+  audit_reasoning     TEXT,
+  audited_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_audits_business ON agency_audits(business_id);
+
+-- ---------- generated previews ----------
+CREATE TABLE IF NOT EXISTS agency_previews (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  business_id     UUID NOT NULL REFERENCES agency_businesses(id) ON DELETE CASCADE,
+  slug            TEXT NOT NULL,
+  preview_url     TEXT NOT NULL,
+  template_used   TEXT,
+  sections        JSONB,
+  copy_generated  JSONB,
+  visits          INTEGER DEFAULT 0,
+  cta_clicks      INTEGER DEFAULT 0,
+  status          TEXT DEFAULT 'active',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_previews_business ON agency_previews(business_id);
+CREATE INDEX IF NOT EXISTS idx_agency_previews_slug ON agency_previews(slug);
+
+-- ---------- outreach campaigns ----------
+CREATE TABLE IF NOT EXISTS agency_campaigns (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  niche           TEXT,
+  city            TEXT,
+  state           TEXT,
+  status          TEXT DEFAULT 'draft',
+  sending_platform TEXT,
+  daily_limit     INTEGER DEFAULT 40,
+  warmup_day      INTEGER DEFAULT 0,
+  total_sent      INTEGER DEFAULT 0,
+  total_opens     INTEGER DEFAULT 0,
+  total_clicks    INTEGER DEFAULT 0,
+  total_replies   INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_campaigns_org ON agency_campaigns(org_id);
+
+-- ---------- email sequences ----------
+CREATE TABLE IF NOT EXISTS agency_sequences (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  campaign_id     UUID REFERENCES agency_campaigns(id) ON DELETE SET NULL,
+  business_id     UUID NOT NULL REFERENCES agency_businesses(id) ON DELETE CASCADE,
+  to_email        TEXT NOT NULL,
+  step            INTEGER NOT NULL DEFAULT 1,
+  subject         TEXT,
+  body            TEXT,
+  preview_url     TEXT,
+  sent_at         TIMESTAMPTZ,
+  opened_at       TIMESTAMPTZ,
+  clicked_at      TIMESTAMPTZ,
+  replied_at      TIMESTAMPTZ,
+  bounced         BOOLEAN DEFAULT false,
+  status          TEXT DEFAULT 'queued',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_sequences_business ON agency_sequences(business_id);
+CREATE INDEX IF NOT EXISTS idx_agency_sequences_status ON agency_sequences(status);
+
+-- ---------- suppression list ----------
+CREATE TABLE IF NOT EXISTS agency_suppression (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  email       TEXT NOT NULL,
+  reason      TEXT,
+  suppressed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_agency_suppression_email ON agency_suppression(org_id, email);
+
+-- ---------- pipeline opportunities ----------
+CREATE TABLE IF NOT EXISTS agency_opportunities (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  business_id       UUID NOT NULL REFERENCES agency_businesses(id) ON DELETE CASCADE,
+  stage             agency_pipeline_stage NOT NULL DEFAULT 'DISCOVERED',
+  opportunity_type  opportunity_type,
+  recommended_offer TEXT,
+  revenue_low_cents INTEGER,
+  revenue_high_cents INTEGER,
+  mrr_cents         INTEGER,
+  priority_score    INTEGER DEFAULT 0,
+  outreach_angle    TEXT,
+  message_angle     TEXT,
+  campaign_id       UUID REFERENCES agency_campaigns(id) ON DELETE SET NULL,
+  preview_id        UUID REFERENCES agency_previews(id) ON DELETE SET NULL,
+  call_booked_at    TIMESTAMPTZ,
+  proposal_sent_at  TIMESTAMPTZ,
+  won_at            TIMESTAMPTZ,
+  lost_at           TIMESTAMPTZ,
+  lost_reason       TEXT,
+  notes             TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_opps_org ON agency_opportunities(org_id);
+CREATE INDEX IF NOT EXISTS idx_agency_opps_stage ON agency_opportunities(stage);
+CREATE INDEX IF NOT EXISTS idx_agency_opps_type ON agency_opportunities(opportunity_type);
+
+-- ---------- proposals ----------
+CREATE TABLE IF NOT EXISTS agency_proposals (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  opportunity_id  UUID NOT NULL REFERENCES agency_opportunities(id) ON DELETE CASCADE,
+  tier            TEXT,
+  total_cents     INTEGER,
+  mrr_cents       INTEGER,
+  sections        JSONB,
+  pdf_url         TEXT,
+  status          TEXT DEFAULT 'draft',
+  sent_at         TIMESTAMPTZ,
+  accepted_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_proposals_opp ON agency_proposals(opportunity_id);
+
+-- ---------- fulfillment projects ----------
+CREATE TABLE IF NOT EXISTS agency_projects (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  opportunity_id  UUID NOT NULL REFERENCES agency_opportunities(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  package_type    TEXT,
+  status          TEXT DEFAULT 'active',
+  started_at      TIMESTAMPTZ DEFAULT now(),
+  completed_at    TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_projects_org ON agency_projects(org_id);
+
+-- ---------- fulfillment tasks ----------
+CREATE TABLE IF NOT EXISTS agency_tasks (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  project_id      UUID NOT NULL REFERENCES agency_projects(id) ON DELETE CASCADE,
+  title           TEXT NOT NULL,
+  description     TEXT,
+  status          TEXT DEFAULT 'pending',
+  sort_order      INTEGER DEFAULT 0,
+  due_at          TIMESTAMPTZ,
+  completed_at    TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_tasks_project ON agency_tasks(project_id);
+
+-- ---------- agent activity logs ----------
+CREATE TABLE IF NOT EXISTS agency_agent_logs (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  agent_name  TEXT NOT NULL,
+  action      TEXT NOT NULL,
+  target_id   UUID,
+  target_type TEXT,
+  payload     JSONB,
+  result      JSONB,
+  logged_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_agent_logs_org ON agency_agent_logs(org_id);
+CREATE INDEX IF NOT EXISTS idx_agency_agent_logs_agent ON agency_agent_logs(agent_name);
+
+-- ---------- tracking events ----------
+CREATE TABLE IF NOT EXISTS agency_tracking_events (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  business_id UUID REFERENCES agency_businesses(id) ON DELETE SET NULL,
+  preview_id  UUID REFERENCES agency_previews(id) ON DELETE SET NULL,
+  sequence_id UUID REFERENCES agency_sequences(id) ON DELETE SET NULL,
+  event_type  TEXT NOT NULL,
+  metadata    JSONB,
+  ip_address  TEXT,
+  user_agent  TEXT,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agency_tracking_org ON agency_tracking_events(org_id);
+CREATE INDEX IF NOT EXISTS idx_agency_tracking_type ON agency_tracking_events(event_type);

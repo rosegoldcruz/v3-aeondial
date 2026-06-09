@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "./options";
 import { one } from "@/lib/db/pool";
@@ -18,10 +19,9 @@ interface CurrentUser {
 }
 
 // Resolves the current ZITADEL session to an org_id.
-// Maps the OIDC subject -> users.zitadel_sub -> users.org_id.
-// DEV fallback: if AEON_DEV_ORG_ID is set and no session exists, use it
-// so the platform is runnable before ZITADEL is fully provisioned.
-export async function getOrgId(): Promise<string | null> {
+// Memoised with React cache() — within one server render the lookup
+// runs exactly once no matter how many server components call it.
+export const getOrgId = cache(async function getOrgId(): Promise<string | null> {
   if (!process.env.POSTGRES_URL) {
     const devOrg = process.env.AEON_DEV_ORG_ID;
     return devOrg ?? null;
@@ -55,7 +55,7 @@ export async function getOrgId(): Promise<string | null> {
   } catch {
     return process.env.AEON_DEV_ORG_ID ?? null;
   }
-}
+});
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!process.env.POSTGRES_URL) return null;

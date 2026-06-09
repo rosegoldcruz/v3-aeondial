@@ -166,3 +166,97 @@ export interface Call {
   ari_channel_id: string | null;
   created_at: string; updated_at: string;
 }
+
+// ---------- Automation (n8n) ----------
+
+export interface AutomationWorkflow {
+  id: string; org_id: string; n8n_workflow_id: string | null;
+  name: string; description: string | null;
+  trigger_event: string | null; active: boolean;
+  webhook_path: string | null;
+  created_at: string; updated_at: string;
+}
+
+export interface AutomationRun {
+  id: string; org_id: string; workflow_id: string | null;
+  n8n_execution_id: string | null;
+  status: string; trigger_event: string | null;
+  payload: Record<string, unknown> | null;
+  result: Record<string, unknown> | null;
+  started_at: string; finished_at: string | null;
+}
+
+// ---------- Autonomous Digital Agency ----------
+
+export type DigitalClass = "INVISIBLE" | "WEAK" | "AVERAGE" | "STRONG" | "ADVANCED";
+export type OpportunityType = "NO_WEBSITE" | "BAD_WEBSITE" | "GOOD_WEBSITE_NO_CRM" | "HIGH_REVIEW_LOW_CONVERSION" | "HIGH_VALUE_TARGET" | "ALREADY_ADVANCED";
+export type AgencyPipelineStage = "DISCOVERED" | "SCORED" | "PREVIEW_GENERATED" | "EMAIL_SENT" | "OPENED" | "CLICKED" | "REPLIED" | "CALL_BOOKED" | "PROPOSAL_SENT" | "WON" | "LOST" | "CLIENT" | "RETAINER";
+
+export interface AgencyBusiness {
+  id: string; org_id: string; business_name: string;
+  category: string | null; address: string | null;
+  city: string | null; state: string | null; country: string | null;
+  phone: string | null; email: string | null;
+  website: string | null; domain: string | null;
+  google_place_id: string | null; google_maps_url: string | null;
+  rating: number | null; review_count: number;
+  services: string[] | null; source: string | null; source_tier: string | null;
+  created_at: string; updated_at: string;
+}
+
+export interface AgencyScore {
+  id: string; org_id: string; business_id: string;
+  total_score: number; classification: DigitalClass;
+  reasoning: string | null; missing_infra: string[] | null;
+  scored_at: string;
+}
+
+export interface AgencyPreview {
+  id: string; org_id: string; business_id: string;
+  slug: string; preview_url: string; template_used: string | null;
+  visits: number; cta_clicks: number; status: string;
+  created_at: string;
+}
+
+export interface AgencyCampaign {
+  id: string; org_id: string; name: string;
+  niche: string | null; city: string | null; state: string | null;
+  status: string; sending_platform: string | null;
+  daily_limit: number; warmup_day: number;
+  total_sent: number; total_opens: number;
+  total_clicks: number; total_replies: number;
+  created_at: string; updated_at: string;
+}
+
+export interface AgencyOpportunity {
+  id: string; org_id: string; business_id: string;
+  stage: AgencyPipelineStage; opportunity_type: OpportunityType | null;
+  recommended_offer: string | null;
+  revenue_low_cents: number | null; revenue_high_cents: number | null;
+  mrr_cents: number | null; priority_score: number;
+  outreach_angle: string | null; message_angle: string | null;
+  created_at: string; updated_at: string;
+}
+
+export interface AgencyProposal {
+  id: string; org_id: string; opportunity_id: string;
+  tier: string | null; total_cents: number | null; mrr_cents: number | null;
+  pdf_url: string | null; status: string;
+  sent_at: string | null; accepted_at: string | null;
+  created_at: string;
+}
+
+export interface AgencyProject {
+  id: string; org_id: string; opportunity_id: string;
+  name: string; package_type: string | null; status: string;
+  started_at: string | null; completed_at: string | null;
+  created_at: string;
+}
+
+export interface AgencyAgentLog {
+  id: string; org_id: string; agent_name: string;
+  action: string; target_id: string | null; target_type: string | null;
+  payload: Record<string, unknown> | null;
+  result: Record<string, unknown> | null;
+  logged_at: string;
+}

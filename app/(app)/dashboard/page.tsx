@@ -1,18 +1,7 @@
 import { redirect } from "next/navigation";
 import { Topbar } from "@/components/shell/topbar";
 import { getOrgId } from "@/lib/auth/session";
-import {
-  getActivityHeatmap,
-  getDashboardDeltas,
-  getDashboardInsight,
-  getDashboardKPIs,
-  getIntegrationStatus,
-  getPipelineStages,
-  getPriorityActions,
-  getRecentDeals,
-  getRecentLeads,
-  getRevenueTrend,
-} from "@/lib/data/dashboard";
+import { getDashboardPageData } from "@/lib/data/dashboard";
 import { OverviewClient } from "./overview-client";
 
 export const dynamic = "force-dynamic";
@@ -21,44 +10,35 @@ export default async function DashboardPage() {
   const orgId = await getOrgId();
   if (!orgId) redirect("/login");
 
-  const [
-    kpis,
-    deltas,
-    priorityActions,
-    recentDeals,
-    recentLeads,
-    revenueTrend,
-    pipelineStages,
-    heatmap,
-    integrations,
-    insight,
-  ] = await Promise.all([
-    getDashboardKPIs(orgId),
-    getDashboardDeltas(orgId),
-    getPriorityActions(orgId),
-    getRecentDeals(orgId),
-    getRecentLeads(orgId),
-    getRevenueTrend(orgId),
-    getPipelineStages(orgId),
-    getActivityHeatmap(orgId),
-    Promise.resolve(getIntegrationStatus()),
-    getDashboardInsight(orgId),
-  ]);
+  // Single consolidated fetch: 6 parallel queries vs the old 20+ sequential
+  const data = await getDashboardPageData(orgId);
+
+  const pipelineStr = (data.kpis.pipelineValueCents / 100).toLocaleString("en-US");
+  const wonStr = (data.kpis.wonThisMonthCents / 100).toLocaleString("en-US");
+  const burnStr = (data.kpis.monthlyBurnCents / 100).toLocaleString("en-US");
+  const runway =
+    data.kpis.monthlyBurnCents > 0
+      ? Math.round(data.kpis.wonThisMonthCents / data.kpis.monthlyBurnCents)
+      : 0;
+  const initialInsight = {
+    insight: `Pipeline stands at $${pipelineStr} across active deals. Won $${wonStr} this month with ${data.kpis.newLeadsCount} new leads this week. Monthly burn is $${burnStr}/mo${runway > 0 ? ` — projected runway ${runway} months` : ""}.`,
+    source: "computed" as const,
+  };
 
   return (
     <>
       <Topbar title="Mission Control" right={null} />
       <OverviewClient
-        kpis={kpis}
-        deltas={deltas}
-        priorityActions={priorityActions}
-        recentDeals={recentDeals}
-        recentLeads={recentLeads}
-        revenueTrend={revenueTrend}
-        pipelineStages={pipelineStages}
-        heatmap={heatmap}
-        integrations={integrations}
-        initialInsight={insight}
+        kpis={data.kpis}
+        deltas={data.deltas}
+        priorityActions={data.priorityActions}
+        recentDeals={data.recentDeals}
+        recentLeads={data.recentLeads}
+        revenueTrend={data.revenueTrend}
+        pipelineStages={data.pipelineStages}
+        heatmap={data.heatmap}
+        integrations={data.integrations}
+        initialInsight={initialInsight}
       />
     </>
   );

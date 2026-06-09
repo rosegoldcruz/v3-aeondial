@@ -550,3 +550,278 @@ export async function getDashboardInsight(orgId: string): Promise<DashboardInsig
     return { insight: computedInsight(pipelineVal, wonVal, burnVal, leadsVal), source: "computed" };
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  FAST PAGE LOAD — single-pass consolidated query                    */
+/*  Replaces 20+ individual round-trips with 6 parallel queries.      */
+/*  getDashboardPageData() is the ONLY function the dashboard page     */
+/*  should call.  Individual helpers above remain for API routes.      */
+/* ------------------------------------------------------------------ */
+
+interface AggRow {
+  pipeline_cents: number;
+  won_this_month_cents: number;
+  won_last_month_cents: number;
+  pipeline_last_month_cents: number;
+  stage_lead: number;
+  stage_qualified: number;
+  stage_proposal: number;
+  stage_negotiation: number;
+  stage_won: number;
+  stage_lost: number;
+  stagnant_negotiation: number;
+  won_count_month: number;
+  total_count_month: number;
+  burn_now_cents: number;
+  burn_last_cents: number;
+  leads_this_week: number;
+  leads_last_week: number;
+  open_tasks: number;
+  overdue_tasks: number;
+  campaign_count: number;
+  dnc_count: number;
+}
+
+export interface DashboardPageData {
+  kpis: DashboardKPIs;
+  deltas: {
+    pipelineDelta: KPIDelta | null;
+    wonDelta: KPIDelta | null;
+    burnDelta: KPIDelta | null;
+    leadsDelta: KPIDelta | null;
+  };
+  priorityActions: PriorityAction[];
+  pipelineStages: { items: PipelineStageItem[]; totalValueCents: number };
+  recentDeals: RecentDeal[];
+  recentLeads: RecentLead[];
+  revenueTrend: TrendPoint[];
+  heatmap: HeatmapDay[];
+  integrations: IntegrationStatus[];
+}
+
+const AGG_SQL = `
+WITH
+  deal_agg AS (
+    SELECT
+      COALESCE(SUM(CASE WHEN stage NOT IN ('won','lost') THEN value_cents END),0)::bigint      AS pipeline_cents,
+      COALESCE(SUM(CASE WHEN stage='won' AND updated_at >= date_trunc('month', now()) THEN value_cents END),0)::bigint AS won_this_month_cents,
+      COALESCE(SUM(CASE WHEN stage='won' AND updated_at >= date_trunc('month', now()) - interval '1 month' AND updated_at < date_trunc('month', now()) THEN value_cents END),0)::bigint AS won_last_month_cents,
+      COALESCE(SUM(CASE WHEN stage NOT IN ('won','lost') AND created_at < date_trunc('month', now()) THEN value_cents END),0)::bigint AS pipeline_last_month_cents,
+      COALESCE(SUM(CASE WHEN stage='lead'        THEN 1 ELSE 0 END),0)::int AS stage_lead,
+      COALESCE(SUM(CASE WHEN stage='qualified'   THEN 1 ELSE 0 END),0)::int AS stage_qualified,
+      COALESCE(SUM(CASE WHEN stage='proposal'    THEN 1 ELSE 0 END),0)::int AS stage_proposal,
+      COALESCE(SUM(CASE WHEN stage='negotiation' THEN 1 ELSE 0 END),0)::int AS stage_negotiation,
+      COALESCE(SUM(CASE WHEN stage='won'         THEN 1 ELSE 0 END),0)::int AS stage_won,
+      COALESCE(SUM(CASE WHEN stage='lost'        THEN 1 ELSE 0 END),0)::int AS stage_lost,
+      COALESCE(SUM(CASE WHEN stage='negotiation' AND updated_at < now() - interval '7 days' THEN 1 ELSE 0 END),0)::int AS stagnant_negotiation,
+      COALESCE(SUM(CASE WHEN stage='won' AND expected_close >= date_trunc('month', CURRENT_DATE)::date AND expected_close < (date_trunc('month', CURRENT_DATE) + interval '1 month')::date THEN 1 ELSE 0 END),0)::int AS won_count_month,
+      COALESCE(COUNT(CASE WHEN expected_close IS NOT NULL AND expected_close >= date_trunc('month', CURRENT_DATE)::date AND expected_close < (date_trunc('month', CURRENT_DATE) + interval '1 month')::date THEN 1 END),0)::int AS total_count_month
+    FROM deals WHERE org_id = $1
+  ),
+  sub_agg AS (
+    SELECT
+      COALESCE(SUM(CASE WHEN active THEN amount_cents END),0)::bigint AS burn_now_cents,
+      COALESCE(SUM(CASE WHEN active AND created_at < date_trunc('month', now()) THEN amount_cents END),0)::bigint AS burn_last_cents
+    FROM subscriptions WHERE org_id = $1
+  ),
+  lead_agg AS (
+    SELECT
+      COUNT(CASE WHEN created_at > now() - interval '7 days' THEN 1 END)::int  AS leads_this_week,
+      COUNT(CASE WHEN created_at > now() - interval '14 days' AND created_at <= now() - interval '7 days' THEN 1 END)::int AS leads_last_week
+    FROM leads WHERE org_id = $1
+  ),
+  task_agg AS (
+    SELECT
+      COUNT(*)::int                                                       AS open_tasks,
+      COUNT(CASE WHEN due_date < CURRENT_DATE THEN 1 END)::int           AS overdue_tasks
+    FROM tasks WHERE org_id = $1 AND status != 'done'
+  ),
+  campaign_agg AS (
+    SELECT COUNT(*)::int AS campaign_count FROM campaigns WHERE org_id = $1 AND type = 'dialer'
+  ),
+  dnc_agg AS (
+    SELECT COUNT(*)::int AS dnc_count FROM dnc_numbers WHERE org_id = $1
+  )
+SELECT
+  da.pipeline_cents, da.won_this_month_cents, da.won_last_month_cents,
+  da.pipeline_last_month_cents, da.stage_lead, da.stage_qualified,
+  da.stage_proposal, da.stage_negotiation, da.stage_won, da.stage_lost,
+  da.stagnant_negotiation, da.won_count_month, da.total_count_month,
+  sa.burn_now_cents, sa.burn_last_cents,
+  la.leads_this_week, la.leads_last_week,
+  ta.open_tasks, ta.overdue_tasks,
+  ca.campaign_count,
+  dn.dnc_count
+FROM deal_agg da, sub_agg sa, lead_agg la, task_agg ta, campaign_agg ca, dnc_agg dn
+`;
+
+const REVENUE_SQL = `
+WITH weeks AS (
+  SELECT generate_series(
+    date_trunc('week', now()) - interval '7 weeks',
+    date_trunc('week', now()),
+    '1 week'
+  )::date AS w
+)
+SELECT
+  w.w AS week_start,
+  COALESCE(SUM(CASE WHEN d.stage='won' AND d.updated_at >= w.w AND d.updated_at < w.w + interval '7 days' THEN d.value_cents ELSE 0 END),0) AS won,
+  COALESCE(SUM(CASE WHEN d.stage NOT IN ('won','lost') AND d.created_at < w.w + interval '7 days' THEN d.value_cents ELSE 0 END),0) AS pipeline
+FROM weeks w
+LEFT JOIN deals d ON d.org_id = $1
+GROUP BY w.w ORDER BY w.w
+`;
+
+function calcDelta(now: number, last: number, invertDir = false): KPIDelta | null {
+  if (!last) return null;
+  const pct = Math.round(Math.abs((now - last) / last) * 100);
+  const up = invertDir ? now <= last : now >= last;
+  return { value: `${pct}%`, dir: up ? "up" : "down" };
+}
+
+const STAGE_COLOR_MAP: Record<string, string> = {
+  lead: "bg-chart-1",
+  qualified: "bg-chart-2",
+  proposal: "bg-chart-3",
+  negotiation: "bg-chart-4",
+  won: "bg-success",
+  lost: "bg-destructive",
+};
+
+export async function getDashboardPageData(orgId: string): Promise<DashboardPageData> {
+  const [agg, recentDeals, recentLeads, revenueRows, heatmap, staleLeads] = await Promise.all([
+    one<AggRow>(AGG_SQL, [orgId]),
+    query<RecentDeal>(
+      `SELECT d.id, d.title, c.name AS contact_name, u.name AS owner_name,
+              d.value_cents, d.stage, d.updated_at
+       FROM deals d
+       LEFT JOIN contacts c ON c.id = d.contact_id
+       LEFT JOIN users u ON u.id = d.owner_id
+       WHERE d.org_id = $1
+       ORDER BY d.updated_at DESC LIMIT 5`,
+      [orgId]
+    ),
+    query<RecentLead>(
+      `SELECT id, name, company, status, created_at
+       FROM leads WHERE org_id = $1
+       ORDER BY created_at DESC LIMIT 5`,
+      [orgId]
+    ),
+    query<{ week_start: string; won: string; pipeline: string }>(REVENUE_SQL, [orgId]),
+    query<HeatmapDay>(
+      `SELECT occurred_at::date AS date, COUNT(*)::int AS count
+       FROM activities WHERE org_id = $1
+         AND occurred_at >= now() - interval '30 days'
+       GROUP BY occurred_at::date
+       ORDER BY occurred_at::date`,
+      [orgId]
+    ),
+    query<{ name: string; updated_at: string }>(
+      `SELECT name, updated_at FROM leads
+       WHERE org_id = $1 AND status = 'contacted'
+         AND updated_at < now() - interval '5 days'
+       ORDER BY updated_at LIMIT 3`,
+      [orgId]
+    ),
+  ]);
+
+  const a: AggRow = agg ?? {
+    pipeline_cents: 0, won_this_month_cents: 0, won_last_month_cents: 0,
+    pipeline_last_month_cents: 0, stage_lead: 0, stage_qualified: 0,
+    stage_proposal: 0, stage_negotiation: 0, stage_won: 0, stage_lost: 0,
+    stagnant_negotiation: 0, won_count_month: 0, total_count_month: 0,
+    burn_now_cents: 0, burn_last_cents: 0, leads_this_week: 0,
+    leads_last_week: 0, open_tasks: 0, overdue_tasks: 0,
+    campaign_count: 0, dnc_count: 0,
+  };
+
+  const conversionRate =
+    a.total_count_month > 0
+      ? Math.round((a.won_count_month / a.total_count_month) * 100)
+      : 0;
+
+  const kpis: DashboardKPIs = {
+    pipelineValueCents: a.pipeline_cents,
+    wonThisMonthCents: a.won_this_month_cents,
+    monthlyBurnCents: a.burn_now_cents,
+    newLeadsCount: a.leads_this_week,
+    conversionRate,
+    openTasksCount: a.open_tasks,
+  };
+
+  const deltas = {
+    pipelineDelta: calcDelta(a.pipeline_cents, a.pipeline_last_month_cents),
+    wonDelta: calcDelta(a.won_this_month_cents, a.won_last_month_cents),
+    burnDelta: calcDelta(a.burn_now_cents, a.burn_last_cents, true),
+    leadsDelta: calcDelta(a.leads_this_week, a.leads_last_week),
+  };
+
+  // Priority actions — derived entirely from already-fetched data, zero extra queries
+  const priorityActions: PriorityAction[] = [];
+  for (const lead of staleLeads) {
+    const days = Math.floor((Date.now() - new Date(lead.updated_at).getTime()) / 86_400_000);
+    priorityActions.push({
+      severity: "HIGH",
+      text: `Follow up with ${lead.name} — last contact was ${days} days ago`,
+      href: "/crm/leads",
+    });
+  }
+  if (a.stage_qualified > 0 && a.stage_proposal < a.stage_qualified * 0.5) {
+    const dropPct = Math.round((1 - a.stage_proposal / a.stage_qualified) * 100);
+    priorityActions.push({
+      severity: "HIGH",
+      text: `Proposal stage has a ${dropPct}% drop-off. Review your templates`,
+      href: "/crm/campaigns",
+    });
+  }
+  if (a.stagnant_negotiation > 0) {
+    priorityActions.push({
+      severity: "URGENT",
+      text: `${a.stagnant_negotiation} deals stagnant in Negotiation — nudge the owners`,
+      href: "/crm/deals",
+    });
+  }
+  if (a.overdue_tasks > 0) {
+    priorityActions.push({
+      severity: "HIGH",
+      text: `${a.overdue_tasks} overdue tasks need attention`,
+      href: "/ops/tasks",
+    });
+  }
+  if (a.campaign_count > 0 && a.dnc_count === 0) {
+    priorityActions.push({
+      severity: "INFO",
+      text: "No DNC list uploaded — required before dialing",
+      href: "/dialer/compliance",
+    });
+  }
+
+  const pipelineStages = {
+    items: (
+      ["lead", "qualified", "proposal", "negotiation", "won", "lost"] as const
+    ).map((s) => ({
+      stage: s,
+      count: (a as unknown as Record<string, number>)[`stage_${s}`] ?? 0,
+      color: STAGE_COLOR_MAP[s],
+    })),
+    totalValueCents: a.pipeline_cents,
+  };
+
+  const revenueTrend: TrendPoint[] = revenueRows.map((r, i) => ({
+    label: `Wk ${i + 1}`,
+    revenue: Math.round(Number(r.won) / 100),
+    pipeline: Math.round(Number(r.pipeline) / 100),
+  }));
+
+  return {
+    kpis,
+    deltas,
+    priorityActions,
+    pipelineStages,
+    recentDeals,
+    recentLeads,
+    revenueTrend,
+    heatmap,
+    integrations: getIntegrationStatus(),
+  };
+}

@@ -56,6 +56,26 @@ const NAV = [
     ],
   },
   {
+    group: "// AUTOMATIONS",
+    items: [
+      { href: "/automations",           label: "Workflows",     icon: Zap },
+      { href: "/automations/runs",      label: "Run History",   icon: Clock },
+    ],
+  },
+  {
+    group: "// AUTO AGENCY",
+    items: [
+      { href: "/agency",              label: "Dashboard",     icon: LayoutDashboard },
+      { href: "/agency/businesses",   label: "Businesses",    icon: Building2 },
+      { href: "/agency/scoring",      label: "Scoring",       icon: BarChart3 },
+      { href: "/agency/previews",     label: "Previews",      icon: HardDrive },
+      { href: "/agency/campaigns",    label: "Campaigns",     icon: Mail },
+      { href: "/agency/pipeline",     label: "Pipeline",      icon: GitBranch },
+      { href: "/agency/fulfillment",  label: "Fulfillment",   icon: ClipboardList },
+      { href: "/agency/agents",       label: "Agents",        icon: Bot },
+    ],
+  },
+  {
     group: "// INTELLIGENCE",
     items: [
       { href: "/intelligence/chat",    label: "Ask AEON",     icon: BrainCircuit },
