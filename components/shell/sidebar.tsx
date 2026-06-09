@@ -8,7 +8,7 @@ import {
   Phone, Megaphone, BrainCircuit, Bot, Wallet, ClipboardList,
   Package, FolderOpen, ShieldCheck, UserCog, Zap, Mail,
   MessageSquare, Calendar, Target, FileText, Clock, BookOpen,
-  Boxes, HardDrive, BarChart3, Bell, Search, Menu, X
+  Boxes, HardDrive, BarChart3, Bell, Search, Menu, X, Volume2
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
@@ -40,8 +40,10 @@ const NAV = [
     group: "// DIALER",
     items: [
       { href: "/dialer/dashboard",   label: "Dashboard",   icon: Phone },
+      { href: "/dialer/live",        label: "Power Dialer",icon: Zap },
       { href: "/dialer/campaigns",   label: "Campaigns",   icon: Megaphone },
-      { href: "/dialer/live",        label: "Live Monitor",icon: Bell },
+      { href: "/dialer/vm-drops",    label: "VM Drops",    icon: Volume2 },
+      { href: "/dialer/rules",       label: "Dial Rules",  icon: Settings },
       { href: "/dialer/compliance",  label: "DNC / TCPA",  icon: ShieldCheck },
       { href: "/dialer/recordings",  label: "Recordings",  icon: FileText },
     ],

@@ -7,7 +7,7 @@ import {
   getSupervisorStats, getAiRecommendations,
   isDnc, isQuietHours,
 } from "@/lib/dialer/engine";
-import { query } from "@/lib/db/pool";
+import { query, one } from "@/lib/db/pool";
 
 export const dynamic = "force-dynamic";
 
@@ -177,5 +177,83 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(recs);
   }
 
+  // ─── VM DROP LIBRARY ──────────────────────────────────────────────────────
+  if (action === "list_vm_drops") {
+    const rows = await query<{ id: string; name: string; audio_url: string; duration_s: number | null; created_at: string }>(
+      "SELECT id, name, audio_url, duration_s, created_at FROM voicemail_drops WHERE org_id=$1 ORDER BY created_at DESC",
+      [orgId]
+    );
+    return NextResponse.json(rows);
+  }
+
+  if (action === "create_vm_drop") {
+    const name = str(body.name);
+    const audioUrl = str(body.audio_url);
+    if (!name || !audioUrl) return NextResponse.json({ error: "name and audio_url required" }, { status: 400 });
+    const drop = await one(
+      `INSERT INTO voicemail_drops (org_id, name, audio_url, created_by)
+       VALUES ($1,$2,$3,$4) RETURNING *`,
+      [orgId, name, audioUrl, user.id]
+    );
+    return NextResponse.json(drop, { status: 201 });
+  }
+
+  // ─── CAMPAIGN RULES ───────────────────────────────────────────────────────
+  if (action === "list_rules") {
+    const rows = await query<{ id: string; dial_ratio: number; max_attempts: number; attempt_delay_m: number; quiet_hours_start: number | null; quiet_hours_end: number | null; timezone: string; require_amd: boolean; active: boolean }>(
+      "SELECT id, dial_ratio, max_attempts, attempt_delay_m, quiet_hours_start, quiet_hours_end, timezone, require_amd, active FROM campaign_rules WHERE org_id=$1 ORDER BY created_at DESC",
+      [orgId]
+    );
+    return NextResponse.json(rows);
+  }
+
+  if (action === "create_rule") {
+    const rule = await one(
+      `INSERT INTO campaign_rules (org_id, dial_ratio, max_attempts, attempt_delay_m, quiet_hours_start, quiet_hours_end, timezone, require_amd)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [orgId, num(body.dial_ratio, 3), num(body.max_attempts, 5), num(body.attempt_delay_m, 60),
+       body.quiet_hours_start ? Number(body.quiet_hours_start) : null,
+       body.quiet_hours_end ? Number(body.quiet_hours_end) : null,
+       str(body.timezone) || "America/Chicago", body.require_amd === true]
+    );
+    return NextResponse.json(rule, { status: 201 });
+  }
+
+  // ─── DNC LIST ─────────────────────────────────────────────────────────────
+  if (action === "list_dnc") {
+    const rows = await query<{ id: string; phone: string; reason: string | null; added_at: string }>(
+      "SELECT id, phone, reason, added_at FROM dnc_list WHERE org_id=$1 ORDER BY added_at DESC",
+      [orgId]
+    );
+    return NextResponse.json(rows);
+  }
+
+  if (action === "add_dnc") {
+    const phone = str(body.phone);
+    if (!phone) return NextResponse.json({ error: "phone required" }, { status: 400 });
+    await query(
+      `INSERT INTO dnc_list (org_id, phone, reason, added_by)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (org_id, phone) DO UPDATE SET reason=$3, added_by=$4, added_at=now()`,
+      [orgId, phone, str(body.reason) || "manual", user.id]
+    );
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "remove_dnc") {
+    const id = str(body.id);
+    await query("DELETE FROM dnc_list WHERE id=$1 AND org_id=$2", [id, orgId]);
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: "unknown action" }, { status: 400 });
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+function num(v: unknown, fallback: number): number {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+  return isNaN(n) ? fallback : n;
 }
