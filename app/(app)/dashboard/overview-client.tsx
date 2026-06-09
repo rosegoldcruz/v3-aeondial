@@ -6,6 +6,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BarChart3,
+  Check,
+  ChevronDown,
+  CircleAlert,
   Mail,
   Phone,
   Plus,
@@ -46,6 +49,7 @@ interface OverviewClientProps {
   heatmap: HeatmapDay[];
   integrations: IntegrationStatus[];
   initialInsight: DashboardInsight;
+  cryptoReportReadKey: string;
 }
 
 const SEVERITY_STYLES = {
@@ -53,6 +57,18 @@ const SEVERITY_STYLES = {
   HIGH: { badge: "warning" as const, icon: "bg-warning/15 text-warning" },
   INFO: { badge: "accent" as const, icon: "bg-accent/15 text-accent" },
 };
+
+const CRYPTO_REPORT_STORAGE_VERSION = "v1";
+
+const CRYPTO_REPORT_COPY = [
+  "Bitcoin ETFs have seen $5.4 billion flow out over four weeks. The market is sending a signal.",
+  "BTC is at $63,000 this morning. Over the weekend, $1.8 billion in leveraged positions were liquidated in 24 hours. Since mid-May, spot Bitcoin ETFs have bled $5.4 billion across four straight weeks. Last week alone: $1.72 billion. Revolut is prepping a $115B IPO while quietly building crypto and stablecoin infrastructure into its banking stack.",
+  "This is what mature market cycles look like. Not a straight line up.",
+  "The traders who got hurt in this move had one thing in common: they were concentrated. One asset, one thesis, one direction. When the thesis held, it felt like genius. When it reversed, there was nowhere to go.",
+  "I’ve watched this pattern play out across traditional markets, emerging market crises, and every major crypto cycle since 2017. The people who survive long-term aren’t the ones who called the top or the bottom. They’re the ones who were never fully exposed to either.",
+  "Diversification isn’t a conservative strategy. It’s a longevity strategy. The goal isn’t to avoid volatility — it’s to stay in the game long enough to be there when the next cycle starts.",
+  "Volatility like this is uncomfortable for most. For the right systems and the right allocation, it’s just market conditions.",
+];
 
 function formatPipelineTotal(cents: number) {
   const dollars = cents / 100;
@@ -140,6 +156,7 @@ export function OverviewClient({
   heatmap,
   integrations,
   initialInsight,
+  cryptoReportReadKey,
 }: OverviewClientProps) {
   const router = useRouter();
   const [insight, setInsight] = useState(initialInsight);
@@ -147,6 +164,8 @@ export function OverviewClient({
   const [refreshedAt, setRefreshedAt] = useState(Date.now());
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailConfirm, setEmailConfirm] = useState(false);
+  const [cryptoReportOpen, setCryptoReportOpen] = useState(false);
+  const [cryptoReportMounted, setCryptoReportMounted] = useState(false);
 
   const heatmapCells = useMemo(() => buildHeatmapCells(heatmap), [heatmap]);
   const heatmapMax = useMemo(() => Math.max(1, ...heatmapCells), [heatmapCells]);
@@ -176,6 +195,33 @@ export function OverviewClient({
   useEffect(() => {
     void refreshInsight();
   }, [refreshInsight]);
+
+  useEffect(() => {
+    setCryptoReportMounted(true);
+    if (typeof window === "undefined") return;
+
+    const storageKey = `aeon:crypto-report-read:${CRYPTO_REPORT_STORAGE_VERSION}:${cryptoReportReadKey}`;
+    const isRead = window.localStorage.getItem(storageKey) === "1";
+    setCryptoReportOpen(!isRead);
+  }, [cryptoReportReadKey]);
+
+  useEffect(() => {
+    if (!cryptoReportOpen) return;
+
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = previousOverflow;
+    };
+  }, [cryptoReportOpen]);
+
+  function dismissCryptoReport() {
+    if (typeof window !== "undefined") {
+      const storageKey = `aeon:crypto-report-read:${CRYPTO_REPORT_STORAGE_VERSION}:${cryptoReportReadKey}`;
+      window.localStorage.setItem(storageKey, "1");
+    }
+    setCryptoReportOpen(false);
+  }
 
   const minutesAgo = Math.max(0, Math.floor((Date.now() - refreshedAt) / 60_000));
 
@@ -209,6 +255,80 @@ export function OverviewClient({
 
   return (
     <PageSection>
+      {cryptoReportMounted && cryptoReportOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          <div
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            aria-hidden="true"
+          />
+          <div className="relative w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-black/40">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent via-warning to-success" />
+            <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-accent">
+                  <CircleAlert size={12} />
+                  Crypto Report
+                </div>
+                <h2 className="text-xl font-semibold text-foreground">Read this before you move on</h2>
+                <p className="text-sm text-muted-foreground">
+                  Market structure, volatility, and allocation discipline in one briefing.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={dismissCryptoReport}
+                className="rounded-full border border-border bg-secondary/70 p-2 text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Dismiss crypto report"
+              >
+                <ChevronDown size={16} />
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="space-y-4">
+                <div className="rounded-xl border border-border bg-background/60 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">CRYPTO REPORT</p>
+                  <h3 className="mt-2 text-2xl font-semibold leading-tight text-foreground">
+                    $5.4 billion out of Bitcoin ETFs in four weeks. The market is sending a signal.
+                  </h3>
+                </div>
+
+                <div className="space-y-4 text-sm leading-7 text-foreground">
+                  {CRYPTO_REPORT_COPY.map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+
+                <div className="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-foreground">
+                  <div className="flex items-start gap-3">
+                    <Check size={16} className="mt-0.5 shrink-0 text-warning" />
+                    <div>
+                      <div className="font-semibold">Acknowledgment</div>
+                      <div className="mt-1 text-muted-foreground">
+                        This popup will not show again on this browser for this signed-in account after you dismiss it.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-border bg-secondary/30 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <p className="text-xs text-muted-foreground">
+                Open now, read when ready, then dismiss to continue into the dashboard.
+              </p>
+              <button
+                type="button"
+                onClick={dismissCryptoReport}
+                className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
+              >
+                I have read this
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Section A: Pulse Row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <PulseCard

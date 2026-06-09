@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Topbar } from "@/components/shell/topbar";
-import { getOrgId } from "@/lib/auth/session";
+import { getCurrentUser, getOrgId } from "@/lib/auth/session";
 import { getDashboardPageData } from "@/lib/data/dashboard";
 import { OverviewClient } from "./overview-client";
 
@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const orgId = await getOrgId();
   if (!orgId) redirect("/login");
+  const currentUser = await getCurrentUser();
 
   // Single consolidated fetch: 6 parallel queries vs the old 20+ sequential
   const data = await getDashboardPageData(orgId);
@@ -39,6 +40,7 @@ export default async function DashboardPage() {
         heatmap={data.heatmap}
         integrations={data.integrations}
         initialInsight={initialInsight}
+        cryptoReportReadKey={currentUser?.id ?? currentUser?.email ?? orgId}
       />
     </>
   );
