@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as Record<string, unknown>;
 
   const toNumber = typeof body.toNumber === "string" ? body.toNumber.trim() : "";
+  const agentPhone = typeof body.agentPhone === "string" ? body.agentPhone.trim() : "";
+  
   if (!toNumber) {
     return NextResponse.json({ error: "toNumber is required" }, { status: 400 });
   }
@@ -24,12 +26,18 @@ export async function POST(req: NextRequest) {
   await initCallEventLoop();
 
   try {
+    // If agentPhone is provided, dial the AGENT first (agentPhone), 
+    // and pass toNumber as the lead number to bridge to.
+    const dialTarget = agentPhone || toNumber;
+    const leadNumber = agentPhone ? toNumber : undefined;
+
     const result = await originateCall({
       orgId,
       userId: user?.id,
       leadId: typeof body.leadId === "string" ? body.leadId : undefined,
       contactId: typeof body.contactId === "string" ? body.contactId : undefined,
-      toNumber,
+      toNumber: dialTarget,
+      leadNumber,
       fromNumber: typeof body.fromNumber === "string" ? body.fromNumber : undefined,
       record: body.record === true,
     });

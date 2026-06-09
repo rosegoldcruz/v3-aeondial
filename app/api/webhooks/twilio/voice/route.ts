@@ -32,14 +32,22 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Read leadNumber query param from voice URL
+  const leadNumber = req.nextUrl.searchParams.get("leadNumber");
+
   // Return TwiML — bridge to agent or conference
-  const twiml = `\u003c?xml version="1.0" encoding="UTF-8"?\u003e
-\u003cResponse\u003e
-  \u003cSay voice="alice"\u003ePlease hold while we connect your call.\u003c/Say\u003e
-  \u003cDial record="record-from-answer" recordingStatusCallback="${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/recording"\u003e
-    \u003cClient\u003eaeon-agent\u003c/Client\u003e
-  \u003c/Dial\u003e
-\u003c/Response\u003e`;
+  let dialTarget = `<Client>aeon-agent</Client>`;
+  if (leadNumber) {
+    dialTarget = `<Number>${leadNumber}</Number>`;
+  }
+
+  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Please hold while we connect your call.</Say>
+  <Dial record="record-from-answer" recordingStatusCallback="${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/recording">
+    ${dialTarget}
+  </Dial>
+</Response>`;
 
   return new NextResponse(twiml, {
     headers: { "Content-Type": "application/xml" },

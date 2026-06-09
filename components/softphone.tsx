@@ -18,12 +18,25 @@ interface CallRecord {
 export function Softphone() {
   const searchParams = useSearchParams();
   const [number, setNumber] = useState("");
+  const [agentPhone, setAgentPhone] = useState("");
   const [status, setStatus] = useState<"idle" | "dialing" | "connected" | "ended">("idle");
   const [activeCall, setActiveCall] = useState<CallRecord | null>(null);
   const [duration, setDuration] = useState(0);
   const [recentCalls, setRecentCalls] = useState<CallRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load agent phone from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("aeon_agent_phone");
+    if (saved) setAgentPhone(saved);
+  }, []);
+
+  // Save agent phone to localStorage on change
+  const handleAgentPhoneChange = (val: string) => {
+    setAgentPhone(val);
+    localStorage.setItem("aeon_agent_phone", val);
+  };
 
   // Handle ?call= query param from CRM click-to-call
   useEffect(() => {
@@ -58,13 +71,21 @@ export function Softphone() {
 
   async function dial() {
     if (!number.trim()) return;
+    if (!agentPhone.trim()) {
+      setError("Please configure your Agent Phone number first");
+      return;
+    }
     setError(null);
     setStatus("dialing");
     try {
       const res = await fetch("/api/dialer/calls", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toNumber: number.trim(), record: true }),
+        body: JSON.stringify({
+          toNumber: number.trim(),
+          agentPhone: agentPhone.trim(),
+          record: true,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Call failed");
@@ -102,6 +123,21 @@ export function Softphone() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Agent Leg Configuration */}
+      <div className="rounded-xl border border-sidebar-border bg-sidebar p-4 space-y-2">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Agent Phone (Leg)</h3>
+        <input
+          type="tel"
+          value={agentPhone}
+          onChange={(e) => handleAgentPhoneChange(e.target.value)}
+          placeholder="e.g. +14803648205"
+          className="w-full bg-background border border-sidebar-border/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-accent/50 transition-colors"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          When you click "Call", we ring this phone first. When you answer, we connect you to the lead.
+        </p>
+      </div>
+
       {/* Phone Display */}
       <div className="rounded-xl border border-sidebar-border bg-sidebar p-4">
         <div className="text-center space-y-2">
@@ -109,7 +145,7 @@ export function Softphone() {
             type="tel"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
-            placeholder="Enter number..."
+            placeholder="Enter lead number..."
             className="w-full bg-transparent text-center text-2xl font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
             onKeyDown={(e) => { if (e.key === "Enter") dial(); }}
           />

@@ -20,6 +20,7 @@ export interface OriginateParams {
   fromNumber?: string;
   record?: boolean;
   callbackUrl?: string;
+  leadNumber?: string;
 }
 
 export interface OriginateResult {
@@ -48,11 +49,13 @@ export async function twilioOriginate(params: OriginateParams): Promise<Originat
   const fromNum = params.fromNumber || twilioFrom();
   if (!fromNum) throw new Error("Missing Twilio from number");
 
+  const voiceUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/voice` + (params.leadNumber ? `?leadNumber=${encodeURIComponent(params.leadNumber)}` : "");
+
   const url = `${TWILIO_BASE}/Accounts/${sid}/Calls.json`;
   const body = new URLSearchParams({
     To: params.toNumber,
     From: fromNum,
-    Url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/voice`,
+    Url: voiceUrl,
     StatusCallback: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/status`,
     StatusCallbackEvent: "initiated ringing answered completed",
     ...(params.record ? { Record: "true", RecordingStatusCallback: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/recording` } : {}),
