@@ -23,6 +23,8 @@ export interface CallRecord {
   duration_s: number | null;
   disposition: string | null;
   recording_url: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 let eventLoopStarted = false;

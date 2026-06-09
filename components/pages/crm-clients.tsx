@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2, Phone } from "lucide-react";
 import { Avatar, Badge, ProgressBar, Row, Stat } from "@/components/ui/primitives";
 import {
   ActionButton,
@@ -136,6 +136,15 @@ export function CRMLeadsClient({ leads, users }: { leads: NamedLead[]; users: Us
                   <Td>{formatShortDate(lead.created_at)}</Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-2">
+                      {lead.phone ? (
+                        <GhostButton
+                          className="h-8 w-8 px-0 text-emerald-400"
+                          title="Call"
+                          onClick={() => window.open(`/dialer/live?call=${encodeURIComponent(lead.phone!)}`, "_blank")}
+                        >
+                          <Phone size={14} />
+                        </GhostButton>
+                      ) : null}
                       <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Eye size={14} /></GhostButton>
                       <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Pencil size={14} /></GhostButton>
                       <GhostButton className="h-8 w-8 px-0" onClick={() => void deleteLead(lead.id)}><Trash2 size={14} /></GhostButton>
@@ -242,6 +251,15 @@ export function CRMContactsClient({ contacts }: { contacts: NamedContact[] }) {
                   <Td>{formatDate(contact.updated_at)}</Td>
                   <Td className="text-right">
                     <div className="flex justify-end gap-2">
+                      {contact.phone ? (
+                        <GhostButton
+                          className="h-8 w-8 px-0 text-emerald-400"
+                          title="Call"
+                          onClick={() => window.open(`/dialer/live?call=${encodeURIComponent(contact.phone!)}`, "_blank")}
+                        >
+                          <Phone size={14} />
+                        </GhostButton>
+                      ) : null}
                       <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Eye size={14} /></GhostButton>
                       <GhostButton className="h-8 w-8 px-0" title="Coming soon" disabled><Pencil size={14} /></GhostButton>
                       <GhostButton className="h-8 w-8 px-0" onClick={() => void deleteContact(contact.id)}><Trash2 size={14} /></GhostButton>
