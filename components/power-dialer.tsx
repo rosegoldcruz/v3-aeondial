@@ -232,8 +232,27 @@ export function PowerDialer() {
     }
   }
 
+  async function submitDisposition(attemptId: string, outcome: string) {
+    await fetch("/api/dialer/disposition", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attempt_id: attemptId, outcome }),
+    });
+    refresh();
+  }
+
+  async function transferCall(attemptId: string, targetUserId: string) {
+    await fetch("/api/dialer/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attempt_id: attemptId, target_user_id: targetUserId }),
+    });
+    refresh();
+  }
+
   const isActive = session?.status === "active";
   const state = presence?.state || "OFFLINE";
+  const connectedAttempt = attempts.find((a) => a.status === "connected");
 
   return (
     <div className="space-y-6">
@@ -302,13 +321,37 @@ export function PowerDialer() {
                 <button onClick={() => setState("AVAILABLE")} className="flex-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 py-2 text-xs text-emerald-400 hover:bg-emerald-500/20"><Play size={14} className="inline mr-1" />Resume</button>
                 <button onClick={endSession} className="flex-1 rounded-lg bg-red-500/10 border border-red-500/30 py-2 text-xs text-red-400 hover:bg-red-500/20"><PhoneOff size={14} className="inline mr-1" />End</button>
               </div>
-              {state === "CONNECTED" && (
-                <button
-                  onClick={toggleMute}
-                  className={`w-full rounded-lg py-2 text-xs font-medium transition-colors ${muted ? "bg-red-500/20 text-red-400 border border-red-500/40" : "bg-background/50 text-foreground border border-sidebar-border/50"}`}
-                >
-                  {muted ? <><MicOff size={14} className="inline mr-1" />Muted</> : <><Mic size={14} className="inline mr-1" />Mute</>}
-                </button>
+              {state === "CONNECTED" && connectedAttempt && (
+                <>
+                  <button
+                    onClick={toggleMute}
+                    className={`w-full rounded-lg py-2 text-xs font-medium transition-colors ${muted ? "bg-red-500/20 text-red-400 border border-red-500/40" : "bg-background/50 text-foreground border border-sidebar-border/50"}`}
+                  >
+                    {muted ? <><MicOff size={14} className="inline mr-1" />Muted</> : <><Mic size={14} className="inline mr-1" />Mute</>}
+                  </button>
+                  <div className="rounded-lg bg-background/50 border border-sidebar-border/50 p-3 space-y-2">
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Call Outcome</div>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { label: "Sale", value: "SALE", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" },
+                        { label: "Callback", value: "CALLBACK_REQUESTED", color: "bg-blue-500/20 text-blue-400 border-blue-500/40" },
+                        { label: "VM Drop", value: "VOICEMAIL_DROP", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/40" },
+                        { label: "Busy", value: "BUSY", color: "bg-orange-500/20 text-orange-400 border-orange-500/40" },
+                        { label: "No Answer", value: "NO_ANSWER", color: "bg-zinc-500/20 text-zinc-400 border-zinc-500/40" },
+                        { label: "DNC", value: "DNC", color: "bg-red-500/20 text-red-400 border-red-500/40" },
+                        { label: "Disconnected", value: "DISCONNECTED", color: "bg-zinc-500/20 text-zinc-400 border-zinc-500/40" },
+                      ].map((btn) => (
+                        <button
+                          key={btn.value}
+                          onClick={() => submitDisposition(connectedAttempt.id, btn.value)}
+                          className={`px-2 py-1 rounded text-[10px] font-medium border ${btn.color} hover:opacity-80 transition-opacity`}
+                        >
+                          {btn.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           )}

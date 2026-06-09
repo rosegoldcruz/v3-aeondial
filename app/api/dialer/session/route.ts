@@ -46,7 +46,35 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "failed to create session" }, { status: 500 });
     await setAgentState(orgId, user.id, "AVAILABLE", session.id);
 
-    return NextResponse.json({ session, message: "Session started. Click 'Next Batch' to begin dialing." });
+    // Auto-queue first batch
+    const leads = await getNextLeads(orgId, session.campaign_id, session.dial_ratio);
+    if (leads.length > 0) {
+      const cleanLeads = [];
+      for (const lead of leads) {
+        if (await isDnc(orgId, lead.phone)) {
+          await query(
+            `INSERT INTO call_attempts (org_id, session_id, lead_id, phone_number, status, outcome)
+             VALUES ($1,$2,$3,$4,'cancelled','DNC'::dial_outcome)`,
+            [orgId, session.id, lead.id, lead.phone]
+          );
+        } else {
+          cleanLeads.push(lead);
+        }
+      }
+      if (cleanLeads.length > 0) {
+        await setAgentState(orgId, user.id, "DIALING", session.id);
+        const attempts = await placeBatch(orgId, session.id, cleanLeads, "", null);
+        await setAgentState(orgId, user.id, "WAITING_FOR_CONNECT", session.id);
+        return NextResponse.json({
+          session,
+          leads: cleanLeads,
+          attempts,
+          message: `Session started. Dialing ${attempts.length} leads. First human answer wins.`,
+        });
+      }
+    }
+
+    return NextResponse.json({ session, message: "Session started. No leads available — click 'Next Batch' when ready." });
   }
 
   // ─── END SESSION ──────────────────────────────────────────────────────────
