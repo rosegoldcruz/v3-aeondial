@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Phone, PhoneOff, Play, Pause, SkipForward, Volume2, Users, BarChart3, BrainCircuit } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Phone, PhoneOff, Play, Pause, SkipForward, Volume2, Users, BarChart3, BrainCircuit, Mic, MicOff } from "lucide-react";
+
+// Twilio Client SDK types (loaded dynamically)
+declare global {
+  interface Window {
+    Twilio: any;
+  }
+}
 
 interface DialSession {
   id: string; dial_ratio: number; status: string;
@@ -45,19 +52,69 @@ export function PowerDialer() {
   const [session, setSession] = useState<DialSession | null>(null);
   const [presence, setPresence] = useState<AgentPresence | null>(null);
   const [dialRatio, setDialRatio] = useState(3);
-  const [agentPhone, setAgentPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [batchLeads, setBatchLeads] = useState<Lead[]>([]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [supervisor, setSupervisor] = useState<SupervisorStats | null>(null);
   const [aiRecs, setAiRecs] = useState<AiRec[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [webrtcReady, setWebrtcReady] = useState(false);
+  const [webrtcConnected, setWebrtcConnected] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const deviceRef = useRef<any>(null);
 
-  // Load agent phone from localStorage
+  // Load Twilio Client SDK
   useEffect(() => {
-    const saved = localStorage.getItem("aeon_agent_phone");
-    if (saved) setAgentPhone(saved);
+    if (typeof window === "undefined") return;
+    if (window.Twilio) return;
+    const script = document.createElement("script");
+    script.src = "https://sdk.twilio.com/js/client/v1.14/twilio.js";
+    script.onload = () => setWebrtcReady(true);
+    script.onerror = () => setError("Failed to load Twilio Client SDK");
+    document.head.appendChild(script);
   }, []);
+
+  const setupDevice = useCallback(async () => {
+    if (!window.Twilio || !webrtcReady) return;
+    try {
+      const res = await fetch("/api/dialer/token");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const device = new window.Twilio.Device(data.token, {
+        codecPreferences: ["opus", "pcmu"],
+        fakeLocalDTMF: true,
+        enableRingingState: true,
+      });
+
+      device.on("ready", () => {
+        setWebrtcConnected(true);
+        setError(null);
+      });
+
+      device.on("error", (err: any) => {
+        setError(`WebRTC error: ${err.message}`);
+        setWebrtcConnected(false);
+      });
+
+      device.on("disconnect", () => {
+        setWebrtcConnected(false);
+      });
+
+      device.on("incoming", (conn: any) => {
+        // Auto-accept incoming bridge calls
+        conn.accept();
+      });
+
+      deviceRef.current = device;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "WebRTC setup failed");
+    }
+  }, [webrtcReady]);
+
+  useEffect(() => {
+    if (webrtcReady) setupDevice();
+  }, [webrtcReady, setupDevice]);
 
   const refresh = useCallback(async () => {
     try {
@@ -133,17 +190,16 @@ export function PowerDialer() {
   }
 
   async function nextBatch() {
-    if (!agentPhone.trim()) {
-      setError("Enter your agent phone number first");
+    if (!webrtcConnected) {
+      setError("WebRTC not connected. Wait for browser audio to initialize.");
       return;
     }
-    localStorage.setItem("aeon_agent_phone", agentPhone);
     setLoading(true); setError(null);
     try {
       const res = await fetch("/api/dialer/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "next_batch", agent_phone: agentPhone }),
+        body: JSON.stringify({ action: "next_batch" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -164,6 +220,18 @@ export function PowerDialer() {
     refresh();
   }
 
+  function toggleMute() {
+    if (deviceRef.current?.activeConnection()) {
+      const conn = deviceRef.current.activeConnection();
+      if (muted) {
+        conn.mute(false);
+      } else {
+        conn.mute(true);
+      }
+      setMuted(!muted);
+    }
+  }
+
   const isActive = session?.status === "active";
   const state = presence?.state || "OFFLINE";
 
@@ -179,6 +247,10 @@ export function PowerDialer() {
           <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${STATE_COLORS[state] || STATE_COLORS.OFFLINE}`}>
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             {state.replace(/_/g, " ")}
+          </span>
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border ${webrtcConnected ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-red-400 bg-red-500/10 border-red-500/20"}`}>
+            <Volume2 size={12} />
+            {webrtcConnected ? "Browser Audio Ready" : "Browser Audio Offline"}
           </span>
         </div>
       </div>
@@ -204,12 +276,13 @@ export function PowerDialer() {
               </div>
               <button
                 onClick={startSession}
-                disabled={loading}
+                disabled={loading || !webrtcConnected}
                 className="w-full rounded-lg bg-emerald-500/20 border border-emerald-500/40 py-3 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
               >
                 <Play size={16} className="inline mr-2" />
                 Start Dial Session
               </button>
+              {!webrtcConnected && <p className="text-[10px] text-red-400">Wait for browser audio to initialize...</p>}
             </div>
           ) : (
             <div className="space-y-3">
@@ -218,7 +291,7 @@ export function PowerDialer() {
               </div>
               <button
                 onClick={nextBatch}
-                disabled={loading || state === "DIALING" || state === "WAITING_FOR_CONNECT"}
+                disabled={loading || state === "DIALING" || state === "WAITING_FOR_CONNECT" || !webrtcConnected}
                 className="w-full rounded-lg bg-accent/20 border border-accent/40 py-3 text-sm font-semibold text-accent hover:bg-accent/30 transition-colors disabled:opacity-50"
               >
                 <Phone size={16} className="inline mr-2" />
@@ -229,26 +302,33 @@ export function PowerDialer() {
                 <button onClick={() => setState("AVAILABLE")} className="flex-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 py-2 text-xs text-emerald-400 hover:bg-emerald-500/20"><Play size={14} className="inline mr-1" />Resume</button>
                 <button onClick={endSession} className="flex-1 rounded-lg bg-red-500/10 border border-red-500/30 py-2 text-xs text-red-400 hover:bg-red-500/20"><PhoneOff size={14} className="inline mr-1" />End</button>
               </div>
+              {state === "CONNECTED" && (
+                <button
+                  onClick={toggleMute}
+                  className={`w-full rounded-lg py-2 text-xs font-medium transition-colors ${muted ? "bg-red-500/20 text-red-400 border border-red-500/40" : "bg-background/50 text-foreground border border-sidebar-border/50"}`}
+                >
+                  {muted ? <><MicOff size={14} className="inline mr-1" />Muted</> : <><Mic size={14} className="inline mr-1" />Mute</>}
+                </button>
+              )}
             </div>
           )}
 
           {error && <div className="text-xs text-red-400">{error}</div>}
         </div>
 
-        {/* Agent Config */}
+        {/* Browser Audio Status */}
         <div className="rounded-xl border border-sidebar-border bg-sidebar p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-foreground">Agent Configuration</h3>
-          <div>
-            <label className="text-xs text-muted-foreground">Your Agent Phone (Leg)</label>
-            <input
-              type="tel"
-              value={agentPhone}
-              onChange={(e) => setAgentPhone(e.target.value)}
-              placeholder="+14803648205"
-              className="w-full mt-1 bg-background border border-sidebar-border/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:border-accent/50"
-            />
-            <p className="text-[10px] text-muted-foreground mt-1">We call this number first. When you answer, we bridge the lead.</p>
+          <div className="flex items-center gap-2">
+            <Volume2 size={14} className={webrtcConnected ? "text-emerald-400" : "text-red-400"} />
+            <h3 className="text-sm font-semibold text-foreground">Browser Audio</h3>
           </div>
+          <p className="text-xs text-muted-foreground">
+            {webrtcConnected
+              ? "Your browser is connected via WebRTC. When a lead answers, audio will play directly in this tab. Keep your speakers/headset ready."
+              : webrtcReady
+              ? "Initializing Twilio Client SDK..."
+              : "Loading Twilio Client SDK..."}
+          </p>
           <div className="grid grid-cols-2 gap-2 text-center">
             <div className="p-2 rounded-lg bg-background/50"><div className="text-lg font-bold text-foreground">{presence?.total_calls ?? 0}</div><div className="text-[10px] text-muted-foreground">Calls Today</div></div>
             <div className="p-2 rounded-lg bg-background/50"><div className="text-lg font-bold text-foreground">{Math.floor((presence?.total_talk_s ?? 0) / 60)}m</div><div className="text-[10px] text-muted-foreground">Talk Time</div></div>
@@ -290,7 +370,8 @@ export function PowerDialer() {
                   attStatus === "cancelled" ? "border-red-500/30 bg-red-500/5" :
                   attStatus === "ringing" ? "border-blue-500/40 bg-blue-500/10 animate-pulse" :
                   "border-sidebar-border bg-background/50"
-                }`}>
+                }`}
+                >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-foreground">{lead.phone}</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-medium ${
@@ -298,7 +379,8 @@ export function PowerDialer() {
                       attStatus === "cancelled" ? "bg-red-500/20 text-red-400" :
                       attStatus === "ringing" ? "bg-blue-500/20 text-blue-400" :
                       "bg-zinc-500/10 text-zinc-400"
-                    }`}>
+                    }`}
+                    >
                       {attStatus}
                     </span>
                   </div>
