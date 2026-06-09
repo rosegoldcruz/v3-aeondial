@@ -792,3 +792,134 @@ CREATE TABLE IF NOT EXISTS agency_tracking_events (
 );
 CREATE INDEX IF NOT EXISTS idx_agency_tracking_org ON agency_tracking_events(org_id);
 CREATE INDEX IF NOT EXISTS idx_agency_tracking_type ON agency_tracking_events(event_type);
+
+-- ============================================================
+-- PROGRESSIVE POWER DIALER v2
+-- ============================================================
+
+DO $$ BEGIN
+  CREATE TYPE agent_state AS ENUM ('AVAILABLE','DIALING','WAITING_FOR_CONNECT','CONNECTED','PAUSED','BREAK','OFFLINE');
+  CREATE TYPE dial_outcome AS ENUM ('CONNECTED','VOICEMAIL_DROP','BUSY','NO_ANSWER','DISCONNECTED','FAILED','DNC','CALLBACK_REQUESTED','APPOINTMENT_BOOKED','SALE');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ---------- dial sessions ----------
+CREATE TABLE IF NOT EXISTS dial_sessions (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  campaign_id     UUID,
+  status          TEXT NOT NULL DEFAULT 'active',
+  dial_ratio      INTEGER NOT NULL DEFAULT 3,
+  started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at        TIMESTAMPTZ,
+  total_attempts  INTEGER DEFAULT 0,
+  total_connects  INTEGER DEFAULT 0,
+  total_vm_drops  INTEGER DEFAULT 0,
+  total_duration_s INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_dial_sessions_org ON dial_sessions(org_id);
+CREATE INDEX IF NOT EXISTS idx_dial_sessions_user ON dial_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_dial_sessions_active ON dial_sessions(org_id, status) WHERE status = 'active';
+
+-- ---------- agent presence ----------
+CREATE TABLE IF NOT EXISTS agent_presence (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  state           agent_state NOT NULL DEFAULT 'OFFLINE',
+  session_id      UUID REFERENCES dial_sessions(id) ON DELETE SET NULL,
+  current_call_id UUID,
+  last_state_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  total_talk_s    INTEGER DEFAULT 0,
+  total_calls     INTEGER DEFAULT 0,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_presence_user ON agent_presence(org_id, user_id);
+
+-- ---------- call attempts (batch) ----------
+CREATE TABLE IF NOT EXISTS call_attempts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  session_id      UUID NOT NULL REFERENCES dial_sessions(id) ON DELETE CASCADE,
+  lead_id         UUID,
+  contact_id      UUID,
+  phone_number    TEXT NOT NULL,
+  provider        TEXT,
+  provider_call_id TEXT,
+  batch_index     INTEGER NOT NULL DEFAULT 0,
+  status          TEXT NOT NULL DEFAULT 'queued',
+  outcome         dial_outcome,
+  amd_result      TEXT,
+  disposition     TEXT,
+  started_at      TIMESTAMPTZ,
+  connected_at    TIMESTAMPTZ,
+  ended_at        TIMESTAMPTZ,
+  duration_s      INTEGER,
+  recording_url   TEXT,
+  cancel_reason   TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_call_attempts_session ON call_attempts(session_id);
+CREATE INDEX IF NOT EXISTS idx_call_attempts_status ON call_attempts(status);
+CREATE INDEX IF NOT EXISTS idx_call_attempts_provider ON call_attempts(provider_call_id);
+
+-- ---------- call bridges ----------
+CREATE TABLE IF NOT EXISTS call_bridges (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  session_id      UUID NOT NULL REFERENCES dial_sessions(id) ON DELETE CASCADE,
+  winning_attempt_id UUID NOT NULL REFERENCES call_attempts(id),
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  bridge_started  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  bridge_ended    TIMESTAMPTZ,
+  duration_s      INTEGER,
+  recording_url   TEXT,
+  notes           TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_call_bridges_session ON call_bridges(session_id);
+
+-- ---------- voicemail drops ----------
+CREATE TABLE IF NOT EXISTS voicemail_drops (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  audio_url       TEXT NOT NULL,
+  campaign_id     UUID,
+  duration_s      INTEGER,
+  created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_voicemail_drops_org ON voicemail_drops(org_id);
+
+-- ---------- campaign dial rules ----------
+CREATE TABLE IF NOT EXISTS campaign_rules (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  campaign_id     UUID,
+  dial_ratio      INTEGER NOT NULL DEFAULT 3,
+  max_attempts    INTEGER NOT NULL DEFAULT 5,
+  attempt_delay_m INTEGER NOT NULL DEFAULT 60,
+  quiet_hours_start INTEGER,
+  quiet_hours_end   INTEGER,
+  timezone        TEXT DEFAULT 'America/Chicago',
+  require_amd     BOOLEAN DEFAULT true,
+  vm_drop_id      UUID REFERENCES voicemail_drops(id) ON DELETE SET NULL,
+  active          BOOLEAN DEFAULT true,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_campaign_rules_org ON campaign_rules(org_id);
+
+-- ---------- DNC list ----------
+CREATE TABLE IF NOT EXISTS dnc_list (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id      UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
+  phone       TEXT NOT NULL,
+  source      TEXT,
+  reason      TEXT,
+  added_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+  added_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dnc_phone ON dnc_list(org_id, phone);

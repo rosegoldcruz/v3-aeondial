@@ -58,6 +58,9 @@ export async function twilioOriginate(params: OriginateParams): Promise<Originat
     Url: voiceUrl,
     StatusCallback: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/status`,
     StatusCallbackEvent: "initiated ringing answered completed",
+    MachineDetection: "Enable",
+    AsyncAmd: "true",
+    MachineDetectionTimeout: "30",
     ...(params.record ? { Record: "true", RecordingStatusCallback: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/twilio/recording` } : {}),
   });
 
